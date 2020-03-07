@@ -61,3 +61,81 @@ seq.assign(n, t);   // seq中的元素替换为n个值为t的元素
 
 ## 顺序容器
 
+### 向顺序容器添加元素
+
+```c++
+// 这些操作会改变容器的大小；array不支持这些操作
+
+// 在c的尾部创建一个值为t或有args创建的元素，返回void
+c.push_back(t);
+c.emplace_back(args);
+
+// 在c的头部创建一个值为t或由args创建的元素，返回void
+// vector和string不支持push_front和emplace_front
+c.push_front(t);
+c.emplace_front(args);
+
+// 在迭代器p指向的元素之前创建一个值为t或由args创建的元素，返回指向新添加的元素的迭代器
+c.insert(p, t);
+c.emplace(p, args);
+
+// p之前插入n个值为t的元素
+// 将迭代器b和e指定范围内的元素添加到p之前
+// initial list 插入到p指向的元素之前
+c.insert(p, n, t);
+c.insert(p, b, e);
+c.insert(p, il);
+```
+
+**向vector、string、deque插入元素会使所有指向容器的迭代器、引用和指针失效。**
+
+**容器元素是拷贝：用一个对象初始化容器或者将一个对象插入到容器，实际上放入到容器中的是对象值的一个拷贝，不是对象本身。**
+
+**emplace函数在容器中直接构造元素，传递给emplace函数的参数必须与元素类型的构造函数相匹配**
+
+## 访问元素
+
+```c++
+c.back();   // 返回c中尾元素的引用
+c.front();  // 返回c中头元素的引用
+
+// at和下标操作只适用于string、vector、deque、array
+c[n];       // 返回c中下标为n的元素的引用
+c.at(n);    // 返回c中下标为n的元素的引用
+```
+
+## 删除元素
+
+```c++
+c.pop_back();   // 删除c中的尾元素
+c.pop_front();  // 删除c中的头元素，vector和string不支持
+c.erase(p);     // 删除迭代器p所指向的元素，返回被删元素之后的迭代器
+c.erase(b, e);  // 删除迭代器b和e所指定范围内的元素
+c.clear();      // 删除c中所有元素
+```
+
+## 改变容器大小
+
+```c++
+c.resize(n);    // 调整c的大小为n个元素
+c.resize(n, t); // 调整c的大小为n个元素，新添加的元素初始化为值t
+```
+
+## 容器操作可能使迭代器失效
+
+## vector对象如何增长
+
+```c++
+// 容器大小管理操作
+c.shrink_to_fit();  // 将capacity()减小为与size()相同
+c.capacity();       // 不重新分配内存空间，c可以保存多少元素
+c.reserve(n);       // 分配至少能容纳n个元素的内存空间
+```
+
+## 容器适配器
+
+* stack
+* queue
+* priority_queue
+
+默认情况下，stakc和queue基于deque实现，priority_queue基于vector实现
