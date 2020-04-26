@@ -33,8 +33,26 @@ private:
 
 ### 03 User const whenever possible
 
+* const iterator: 迭代器本身是const
+
+* const_iterator: 迭代器指向const
+
 ### 04 Make sure that objects are initialized before they're used
+
+成员变量的初始化动作发生在进入构造函数本体之前
+
+定义于不同编译单元内的non-local static对象的初始化次序是未定义的，以local static对象替换non-local static对象
 
 ## 2. Constructors, Destructors, and Assignment Operators
 
 ### 05 Know what functions C++ silently writes and calls
+
+### 06 Explicitly disallow the use of compiler-generated functions you do not want
+
+### 07 Declare destructors virtual in polymorphic base classes
+
+### 08 Prevent exceptions from leaving destructors
+
+### 09 Never call virtual functions during construction or destruction
+
+### 10 Have assignment operators return a reference to *this 
