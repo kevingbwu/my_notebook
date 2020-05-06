@@ -1,6 +1,8 @@
-# C++ Notes
+# C++ Primer 5th Notes
 
 ## 容器
+
+---
 
 ### 分类
 
@@ -59,7 +61,11 @@ seq.assign(n, t);   // seq中的元素替换为n个值为t的元素
 * 除了无序关联容器外，都支持：>, >=, <, <=
 * 容器使用元素的关系运算符实现比较
 
+---
+
 ## 顺序容器
+
+---
 
 ### 向顺序容器添加元素
 
@@ -93,7 +99,7 @@ c.insert(p, il);
 
 **emplace函数在容器中直接构造元素，传递给emplace函数的参数必须与元素类型的构造函数相匹配**
 
-## 访问元素
+### 访问元素
 
 ```c++
 c.back();   // 返回c中尾元素的引用
@@ -104,7 +110,7 @@ c[n];       // 返回c中下标为n的元素的引用
 c.at(n);    // 返回c中下标为n的元素的引用
 ```
 
-## 删除元素
+### 删除元素
 
 ```c++
 c.pop_back();   // 删除c中的尾元素
@@ -114,16 +120,16 @@ c.erase(b, e);  // 删除迭代器b和e所指定范围内的元素
 c.clear();      // 删除c中所有元素
 ```
 
-## 改变容器大小
+### 改变容器大小
 
 ```c++
 c.resize(n);    // 调整c的大小为n个元素
 c.resize(n, t); // 调整c的大小为n个元素，新添加的元素初始化为值t
 ```
 
-## 容器操作可能使迭代器失效
+### 容器操作可能使迭代器失效
 
-## vector对象如何增长
+### vector对象如何增长
 
 ```c++
 // 容器大小管理操作
@@ -132,7 +138,11 @@ c.capacity();       // 不重新分配内存空间，c可以保存多少元素
 c.reserve(n);       // 分配至少能容纳n个元素的内存空间
 ```
 
+---
+
 ## 容器适配器
+
+---
 
 * stack
 * queue
@@ -143,3 +153,76 @@ c.reserve(n);       // 分配至少能容纳n个元素的内存空间
 priority_queue默认使用<，队列为降序，最高优先级为最大元素；sort默认使用<，结果为升序。
 
 As usual, you can provide the sorting criterion as a template parameter. **By default, the elements are sorted by using operator < in descending order**. Thus, the next element is always the “highest” element.
+
+---
+
+## 关联容器
+
+---
+
+map: kev-value
+
+set: key，支持高效的关键字查询操作
+
+* set or map
+* 关键字重复或不重复
+* 顺序或无序
+
+map multimap unordered_multimap
+set multiset unordered_multiset
+
+### 使用关联容器
+
+```c++
+// 使用map
+// 统计每个单词在输入中出现的次数
+map<string, size_t> word_count;
+string word;
+while(cin >> word) {
+    ++word_count[word]; // 如果word还未在map中，下标运算会创建一个新元素，关键字为word，值为0
+}
+for(const auto &w : word_count) {
+    cout << w.first << " occurs " << w.second 
+         << ((w.second > 1) ? " times" : " time") << endl;
+}
+```
+
+```c++
+// 使用set
+map<string, size_t> word_count;
+set<string> exclude = {"The", "But", "And", "Or", "An", "A",
+                       "the", "but", "and", "or", "an", "a"};
+
+string word;
+while(cin >> word) {
+    if(exclude.find(word) == exlucde.end()) {
+        ++word_count[word];
+    }
+}
+```
+
+### 关联容器关键字类型的要求
+
+对有序关联容器，关键字类型必须定义元素比较的方法，默认使用 **<**
+
+```c++
+bool compareIsbn(const Sales_data &lhs, const Sales_data &rhs) {
+    return lhs.isbn() < rhs.isbn();
+}
+
+// 当使用decltype来获得一个函数指针类型时，必须加上*
+multiset<Sales_data, decltype(compareIsbn) *> bookstore(compareIsbn);
+```
+
+### pair类型
+
+```c++
+pair<T1, T2> p;     // p是一个pair，两个成员进行了值初始化
+
+pair<T1, T2> p(v1, v2);
+
+pair<T1, T2> p = {v1, v2};  // 等价p(v1, v2)
+
+make_pair(v1, v2)   // 返回一个v1和v2初始化的pair，类型从v1和v2推断出来
+
+```
