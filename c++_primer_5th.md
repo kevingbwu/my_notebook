@@ -2,8 +2,6 @@
 
 ## 容器
 
----
-
 ### 分类
 
 * 顺序容器：array, vector, deque, forward_list, list, string(与vector类似，专门用于保存字符)
@@ -61,11 +59,7 @@ seq.assign(n, t);   // seq中的元素替换为n个值为t的元素
 * 除了无序关联容器外，都支持：>, >=, <, <=
 * 容器使用元素的关系运算符实现比较
 
----
-
 ## 顺序容器
-
----
 
 ### 向顺序容器添加元素
 
@@ -138,11 +132,7 @@ c.capacity();       // 不重新分配内存空间，c可以保存多少元素
 c.reserve(n);       // 分配至少能容纳n个元素的内存空间
 ```
 
----
-
 ## 容器适配器
-
----
 
 * stack
 * queue
@@ -154,11 +144,7 @@ priority_queue默认使用<，队列为降序，最高优先级为最大元素�
 
 As usual, you can provide the sorting criterion as a template parameter. **By default, the elements are sorted by using operator < in descending order**. Thus, the next element is always the “highest” element.
 
----
-
 ## 关联容器
-
----
 
 map: kev-value
 
