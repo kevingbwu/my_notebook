@@ -287,3 +287,25 @@ c.upper_bound(k)
 // 返回迭代器pair，表示关键等于k的元素的范围，若k不存在，pair的两个成员均等于c.end()
 c.equal_range(k)
 ```
+
+### 无序容器
+
+使用哈希函数和关键字类型的==运算符来组织元素
+
+无序容器在存储上组织为一组桶，每个桶保存零个或多个元素
+
+```c++
+// 自定义类型的无序容器，需要提供函数替代==运算符和哈希值计算函数
+size_t hasher(const Sales_data &sd) {
+    return hash<string>()(sd.isbn());
+}
+
+bool eqOp(const Sales_data &lhs, const Sales_data &rhs) {
+    return lhs.isbn() == rhs.isbn();
+}
+
+using SD_multiset = unordered_multiset<Sales_data, decltype(hasher) *, decltype(eqOp) *>;
+
+// bucket_count, hash函数, ==运算
+SD_multiset bookstore(42, hasher, eqOp);
+```
