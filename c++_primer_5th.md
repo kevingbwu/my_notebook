@@ -138,7 +138,7 @@ c.reserve(n);       // 分配至少能容纳n个元素的内存空间
 * queue
 * priority_queue
 
-默认情况下，stakc和queue基于deque实现，priority_queue基于vector实现
+默认情况下，stack和queue基于deque实现，priority_queue基于vector实现
 
 priority_queue默认使用<，队列为降序，最高优先级为最大元素；sort默认使用<，结果为升序。
 
