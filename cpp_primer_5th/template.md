@@ -291,5 +291,3 @@ template<typename T> using twin = pair<T, T>;
 twin<string> authors; // authors is a pair<string, string>
 // 少写一次string
 ```
-
-#### 类模板的static成员
