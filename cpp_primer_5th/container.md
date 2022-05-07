@@ -196,6 +196,12 @@ bool compareIsbn(const Sales_data &lhs, const Sales_data &rhs) {
 
 // 当使用decltype来获得一个函数指针类型时，必须加上*
 multiset<Sales_data, decltype(compareIsbn) *> bookstore(compareIsbn);
+
+template<
+    class Key,
+    class Compare = std::less<Key>,
+    class Allocator = std::allocator<Key>
+> class multiset;
 ```
 
 ### pair类型
@@ -306,4 +312,11 @@ using SD_multiset = unordered_multiset<Sales_data, decltype(hasher) *, decltype(
 
 // bucket_count, hash函数, ==运算
 SD_multiset bookstore(42, hasher, eqOp);
+
+template<
+    class Key,
+    class Hash = std::hash<Key>,
+    class KeyEqual = std::equal_to<Key>,
+    class Allocator = std::allocator<Key>
+> class unordered_multiset;
 ```

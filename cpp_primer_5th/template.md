@@ -291,3 +291,95 @@ template<typename T> using twin = pair<T, T>;
 twin<string> authors; // authors is a pair<string, string>
 // 少写一次string
 ```
+
+### 模板参数
+
+通常命名为T，实际可以使用任何名字
+
+#### 模板参数与作用域
+
+作用域：声明之后，模板声明或定义结束之前
+
+```c++
+typedef double A;
+template <typename A, typename B>
+void f(A a, B b)
+{
+    A tmp = a; // tmp has same type as the template parameter A, not double
+    double B; // error: redeclares template parameter B
+}
+```
+
+#### 模板声明
+
+必须包含模板参数
+
+```c++
+// declares but does not define compare and Blob
+template <typename T> int compare(const T&, const T&);
+template <typename T> class Blob;
+```
+
+声明中的模板参数的名字不必与定义相同
+
+```c++
+// all three uses of calc refer to the same function template
+template <typename T> T calc(const T&, const T&); // declaration
+template <typename U> U calc(const U&, const U&); // declaration
+// definition of the template
+template <typename Type>
+Type calc(const Type& a, const Type& b) { /* . . . */ }
+```
+
+#### 使用类的类型成员
+
+```c++
+// size_type 是类型还是static数据成员？
+T::size_type * p;
+```
+
+默认情况下，C++假定通过作用域运算符访问的名字不是类型。如果希望使用模板参数的类型成员，需要显式告诉编译器改名字是一个类型
+
+```c++
+template <typename T>
+typename T::value_type top(const T& c)  // 使用typename指明返回类型
+{
+    if (!c.empty())
+        return c.back();
+    else
+        return typename T::value_type();  // 使用typename生成一个值初始化的元素
+}
+```
+
+#### 默认模板实参
+
+> C++11：允许为函数模板和类模板提供默认实参，之前只允许为类模板提供默认实参
+
+```c++
+// compare has a default template argument, less<T>
+// and a default function argument, F()
+template <typename T, typename F = less<T>>
+int compare(const T& v1, const T& v2, F f = F())
+{
+    if (f(v1, v2)) return -1;
+    if (f(v2, v1)) return 1;
+    return 0;
+}
+```
+
+#### 模板默认实参与类模板
+
+空<>表示使用默认类型
+
+```c++
+template <class T = int>
+class Numbers { // by default T is int
+public:
+    Numbers(T v = 0) : val(v) { }
+    // various operations on numbers
+private:
+    T val;
+};
+Numbers<long double> lots_of_precision;
+Numbers<> average_precision; // empty <> says we want the default type
+```
