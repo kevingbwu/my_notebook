@@ -319,4 +319,9 @@ template<
     class KeyEqual = std::equal_to<Key>,
     class Allocator = std::allocator<Key>
 > class unordered_multiset;
+
+explicit unordered_multiset( size_type bucket_count,
+                             const Hash& hash = Hash(),
+                             const key_equal& equal = key_equal(),
+                             const Allocator& alloc = Allocator() );
 ```
