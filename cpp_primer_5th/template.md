@@ -383,3 +383,120 @@ private:
 Numbers<long double> lots_of_precision;
 Numbers<> average_precision; // empty <> says we want the default type
 ```
+
+### 成员模板
+
+一个类（无论是普通类还是类模板）可以包含本身是模板的成员函数，这种成员叫**成员模板**，成员模板不能是虚函数。
+
+#### 普通类的成员模板
+
+```c++
+// 函数对象类，对给定指针执行delete
+class DebugDelete {
+public:
+    DebugDelete(std::ostream& s = std::cerr) : os(s) { }
+    // as with any function template, the type of T is deduced by the compiler
+    template <typename T> void operator()(T* p) const
+    {
+        os << "deleting unique_ptr" << std::endl; delete p;
+    }
+private:
+    std::ostream& os;
+};
+
+double* p = new double;
+DebugDelete d; // an object that can act like a delete expression
+d(p); // calls DebugDelete::operator()(double*), which deletes p
+int* ip = new int;
+// calls operator()(int*) on a temporary DebugDelete object
+DebugDelete()(ip);
+```
+
+#### 类模板的成员模板
+
+类和成员各自有各自的、独立的模板参数
+
+```c++
+template <typename T> class Blob {
+    template <typename It> Blob(It b, It e);
+    // ...
+};
+```
+
+当在类模板外定义一个成员模板时，必须同时为类模板和成员模板提供模板参数列表。类模板的参数列表在前，后跟成员自己的模板参数列表
+
+```c++
+template <typename T> // type parameter for the class
+template <typename It> // type parameter for the constructor
+Blob<T>::Blob(It b, It e) :
+    data(std::make_shared<std::vector<T>>(b, e)) {
+}
+```
+
+### 实例化与成员模板
+
+```c++
+int ia[] = { 0,1,2,3,4,5,6,7,8,9 };
+vector<long> vi = { 0,1,2,3,4,5,6,7,8,9 };
+list<const char*> w = { "now", "is", "the", "time" };
+// instantiates the Blob<int> class
+// and the Blob<int> constructor that has two int* parameters
+Blob<int> a1(begin(ia), end(ia));
+// instantiates the Blob<int> constructor that has
+// two vector<long>::iterator parameters
+Blob<int> a2(vi.begin(), vi.end());
+// instantiates the Blob<string> class and the Blob<string>
+// constructor that has two (list<const char*>::iterator parameters
+Blob<string> a3(w.begin(), w.end());
+```
+
+### 控制实例化
+
+模板使用时才会实例化。相同的实例可能会出现在多个对象文件中。大系统中在多个文件中实例化相同模板的额外开箱可能非常严重。
+
+> C++11: 显示实例化
+
+```c++
+extern template declaration; // instantiation declaration
+template declaration; // instantiation definition
+```
+
+```c++
+// Application.cc
+// these template types must be instantiated elsewhere in the program
+extern template class Blob<string>;
+extern template int compare(const int&, const int&);
+Blob<string> sa1, sa2; // instantiation will appear elsewhere
+// Blob<int> and its initializer_list constructor instantiated in this file
+Blob<int> a1 = { 0,1,2,3,4,5,6,7,8,9 };
+Blob<int> a2(a1); // copy constructor instantiated in this file
+int i = compare(a1[0], a2[0]); // instantiation will appear elsewhere
+```
+
+```c++
+// templateBuild.cc
+// instantiation file must provide a (nonextern) definition for every
+// type and function that other files declare as extern
+template int compare(const int&, const int&);
+template class Blob<string>; // instantiates all members of the class template
+```
+
+必须将`Application.o`和`templateBuild.o`链接在一起
+
+### 效率与灵活性
+
+#### 运行时绑定删除器
+
+创建或reset指针时传递给它一个可调用对象
+
+```c++
+// shared_ptr
+```
+
+#### 编译器时绑定删除器
+
+删除器的类型是一个unique_ptr对象类型的一部分
+
+```c++
+// unique_ptr
+```
