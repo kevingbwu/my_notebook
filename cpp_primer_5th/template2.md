@@ -66,3 +66,44 @@ print(cout, 42); // instantiates print(ostream&, int)
 ofstream f("output");
 print(f, 10); // uses print(ostream&, int); converts f to ostream&
 ```
+
+### 函数模板显式实参
+
+#### 指定显式模板实参
+
+```c++
+// T1 cannot be deduced: it doesn't appear in the function parameter list
+template <typename T1, typename T2, typename T3>
+T1 sum(T2, T3);
+```
+
+显式模板实参在尖括号中给出，位于函数名之后，实参列表之前
+
+```c++
+// T1 is explicitly specified; T2 and T3 are inferred from the argument types
+auto val3 = sum<long long>(i, lng); // long long sum(int, long)
+```
+
+显式模板实参按从左至右的顺序与对应的模板参数匹配
+
+```c++
+// poor design: users must explicitly specify all three template parameters
+template <typename T1, typename T2, typename T3>
+T3 alternative_sum(T2, T1);
+
+// error: can't infer initial template parameters
+auto val3 = alternative_sum<long long>(i, lng);
+// ok: all three parameters are explicitly specified
+auto val2 = alternative_sum<long long, int, long>(i, lng);
+```
+
+#### 正常类型转换应用于显式指定的实参
+
+对于模板参数已经显式指定了的函数实参，可以进行正常的类型转换
+
+```c++
+long lng;
+compare(lng, 1024); // error: template parameters don't match
+compare<long>(lng, 1024); // ok: instantiates compare(long, long)
+compare<int>(lng, 1024); // ok: instantiates compare(int, int)
+```
