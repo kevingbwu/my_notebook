@@ -45,7 +45,7 @@ T foo(T *p) {
 #### 非类型模板参数
 
 ```c++
-template <unsigned N, ungisned M>
+template <unsigned N, unsigned M>
 int compare(const char (&p1)[N], const char (&p2)[M]) {
     return strcmp(p1, p2);
 }

@@ -107,3 +107,159 @@ compare(lng, 1024); // error: template parameters don't match
 compare<long>(lng, 1024); // ok: instantiates compare(long, long)
 compare<int>(lng, 1024); // ok: instantiates compare(int, int)
 ```
+
+### 尾置返回类型与类型转换
+
+在编译器遇到函数的参数列表之前，并不知道返回结果的准确类型
+
+```c++
+template <typename It>
+??? &fcn(It beg, It end)
+{
+    // process the range
+    return *beg; // return a reference to an element from the range
+}
+
+vector<int> vi = {1,2,3,4,5};
+Blob<string> ca = { "hi", "bye" };
+auto &i = fcn(vi.begin(), vi.end()); // fcn should return int&
+auto &s = fcn(ca.begin(), ca.end()); // fcn should return string&
+```
+
+使用尾置返回类型
+
+```c++
+// a trailing return lets us declare the return type after the parameter list is seen
+template <typename It>
+auto fcn(It beg, It end) -> decltype(*beg)
+{
+    // process the range
+    return *beg; // return a reference to an element from the range
+}
+```
+
+> 迭代器解引用返回左值，decltype推断的类型为元素类型的引用
+
+#### 进行类型转换的标准库模板类
+
+编写类似fcn的函数，但是返回一个元素的值而非引用？
+
+使用标准库的类型转换模板，位头文件`type_traits`
+
+`remove_reference`模板，有一个类型参数和一个名为type的类型成员
+
+* `remove_reference<int&>`, `type`成员为 `int`
+* `remove_reference<string&>`, `type` 成员为 `string`
+* `remove_reference<decltype(*beg)>::type` 将获得 `beg` 引用的元素类型
+
+```c++
+// must use typename to use a type member of a template parameter
+template <typename It>
+auto fcn2(It beg, It end) ->
+typename remove_reference<decltype(*beg)>::type
+{
+    // process the range
+    return *beg; // return a copy of an element from the range
+}
+```
+
+### 函数指针和实参推断
+
+用函数模板初始化一个函数指针或为一个函数指针赋值，编译器使用函数指针的类型来推断模板实参
+
+```c++
+template <typename T> int compare(const T&, const T&);
+// pf1 points to the instantiation int compare(const int&, const int&)
+int (*pf1)(const int&, const int&) = compare;
+```
+
+如果不能从函数指针类型确定模板实参，则会产生编译错误
+
+```c++
+// overloaded versions of func; each takes a different function pointer type
+void func(int(*)(const string&, const string&));
+void func(int(*)(const int&, const int&));
+func(compare); // error: which instantiation of compare?
+```
+
+可以通过显示实例化来消除歧义
+
+```c++
+// ok: explicitly specify which version of compare to instantiate
+func(compare<int>); // passing compare(const int&, const int&)
+```
+
+### 模板实参推断和引用
+
+#### 从左值引用函数参数推断类型
+
+```c++
+template <typename T> void f1(T&); // 实参必须是一个左值
+// calls to f1 use the referred-to type of the argument as the template parameter type
+f1(i); // i is an int; template parameter T is int
+f1(ci); // ci is a const int; template parameter T is const int
+f1(5); // error: argument to a & parameter must be an lvalue
+```
+
+```c++
+template <typename T> void f2(const T&); // 可以接受一个右值
+// parameter in f2 is const &; const in the argument is irrelevant
+// in each of these three calls, f2's function parameter is inferred as const int&
+f2(i); // i is an int; template parameter T is int
+f2(ci); // ci is a const int, but template parameter T is int
+f2(5); // a const & parameter can be bound to an rvalue; T is int
+```
+
+#### 从右值引用函数参数推断类型
+
+```c++
+template <typename T> void f3(T&&);
+f3(42); // argument is an rvalue of type int; template parameter T is int
+```
+
+#### 引用折叠和右值引用参数
+
+通常不能将一个右值引用绑定到一个左值上
+
+* 例外1：将左值引用传递给函数的右值引用参数，且此右值引用指向模板类型参数时，编译器推断模板类型参数为实参的左值引用类型
+
+* 例外2：如果间接创建一个引用的引用，则这些引用形成了**折叠**
+
+> C++11: 右值引用的右值引用，折叠为右值引用
+
+```c++
+// X& &, X& &&, and X&& & all collapse to type X&
+// The type X&& && collapses to X&&
+
+f3(i); // argument is an lvalue; template parameter T is int&
+f3(ci); // argument is an lvalue; template parameter T is const int&
+
+// f3(i)的实例化结果：
+// invalid code, for illustration purposes only
+void f3<int&>(int& &&); // when T is int&, function parameter is int& &&
+
+// f3的函数参数是T&&且T是int&, 因此T&&是int& &&, 折叠为int&
+//实例化f3:
+void f3<int&>(int&); // when T is int&, function parameter collapses to int&
+```
+
+> 可以将任意类型的实参传递给T&&类型的函数参数
+
+#### 编写接受右值引用参数的模板函数
+
+```c++
+template <typename T> void f3(T&& val)
+{
+    T t = val; // copy or binding a reference?
+    t = fcn(t); // does the assignment change only t or val and t?
+    if (val == t) { /* ... */ } // always true if T is a reference type
+}
+```
+
+实际中，右值引用通常应用于两种情况：**模板转发其实参**或**模板被重载**
+
+```c++
+template <typename T> void f(T&&); // binds to nonconst
+rvalues
+template <typename T> void f(const T&); // lvalues and const rvalues
+```
