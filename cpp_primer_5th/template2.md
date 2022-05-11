@@ -259,8 +259,7 @@ template <typename T> void f3(T&& val)
 实际中，右值引用通常应用于两种情况：**模板转发其实参**或**模板被重载**
 
 ```c++
-template <typename T> void f(T&&); // binds to nonconst
-rvalues
+template <typename T> void f(T&&); // binds to nonconst rvalues
 template <typename T> void f(const T&); // lvalues and const rvalues
 ```
 
