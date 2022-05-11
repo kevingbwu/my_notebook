@@ -263,3 +263,49 @@ template <typename T> void f(T&&); // binds to nonconst
 rvalues
 template <typename T> void f(const T&); // lvalues and const rvalues
 ```
+
+### 理解 std::move
+
+标准库move函数是使用右值引用的模板的一个例子
+
+#### std::move是如何定义的
+
+```c++
+template <typename T>
+typename remove_reference<T>::type&& move(T&& t)
+{
+    return static_cast<typename remove_reference<T>::type&&>(t);
+}
+
+string s1("hi!"), s2;
+s2 = std::move(string("bye!")); // ok: moving from an rvalue
+s2 = std::move(s1); // ok: but after the assigment s1 has indeterminate value
+```
+
+#### std::move是如何工作的
+
+在 `std::move(string("bye!"))` 中
+
+* 当向一个右值引用函数参数传递一个右值时，由实参推断出的类型为被引用的类型
+* The deduced type of T is string.
+* Therefore, remove_reference is instantiated with string.
+* The type member of remove_reference<string> is string.
+* The return type of move is string&&.
+* move’s function parameter, t, has type string&&.
+* Accordingly, this call instantiates move<string>, which is the function `string&& move(string &&t)`
+
+在 `std::move(s1)` 中
+
+* 传递给move的实参是一个左值
+* The deduced type of T is string& (reference to string, not plain string).
+* Therefore, remove_reference is instantiated with string&.
+* The type member of remove_reference<string&> is string,
+* The return type of move is still string&&.
+* move’s function parameter, t, instantiates as string& &&, which collapses to string&.
+* Thus, this call instantiates move<string&>, which is
+`string&& move(string &t)`
+
+#### 从一个左值static_cast到一个右值引用是允许的
+
+> C++11: 针对右值引用的特例：不能隐式地将一个左值转换为右值引用，可以用static_cast显示地将一个左值转换为一个右值引用
+
