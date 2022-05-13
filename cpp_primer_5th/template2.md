@@ -308,3 +308,71 @@ s2 = std::move(s1); // ok: but after the assigment s1 has indeterminate value
 
 > C++11: 针对右值引用的特例：不能隐式地将一个左值转换为右值引用，可以用static_cast显示地将一个左值转换为一个右值引用
 
+### 转发
+
+某些函数需要将其一个或多个实参连同类型不变地转发给其他函数，需要保存被转发实参的所有性质，包括实参类型是否是const的以及实参是左值还是右值
+
+```c++
+// template that takes a callable and two parameters
+// and calls the given callable with the parameters ''flipped''
+// flip1 is an incomplete implementation: top-level const and references are lost
+template <typename F, typename T1, typename T2>
+void flip1(F f, T1 t1, T2 t2)
+{
+    f(t2, t1);
+}
+
+void f(int v1, int &v2) // note v2 is a reference
+{
+    cout << v1 << " " << ++v2 << endl;
+}
+
+int i = 0, j = 0;
+f(42, i);
+cout << i << endl;  // 输出1, f改变了实参i
+flip1(f, j, 42);
+cout << j << endl;  // 输出0, 通过flip1调用不会改变j
+
+// flip1实例化为
+void flip1(void(*fcn)(int, int&), int t1, int t2);
+// j的值被拷贝至t1中, f中的引用参数被绑定到t1, 而非j
+```
+
+#### 定义能保持类型信息的函数参数
+
+**将一个函数参数定义为一个指向模板类型参数的右值引用，可以保持其对应实参的所有类型信息**
+
+```c++
+template <typename F, typename T1, typename T2>
+void flip2(F f, T1 &&t1, T2 &&t2)
+{
+    f(t2, t1);
+}
+
+// flip2解决了一半问题, 它对于接受一个左值引用的函数工作得很好，但不能用于接受右值引用参数的函数
+void g(int &&i, int& j)
+{
+    cout << i << " " << j << endl;
+}
+
+flip2(g, i, 42); // error: can't initialize int&& from an lvalue
+```
+
+> 函数参数与其他任何变量一样，都是左值表达式
+
+#### 在调用中使用`std::forward`保持类型信息
+
+> C++11 `std::forward`返回显示实参类型的右值引用，即`std::forward<T>`的返回类型是`T&&`
+
+```c++
+template <typename F, typename T1, typename T2>
+void flip(F f, T1 &&t1, T2 &&t2)
+{
+    f(std::forward<T2>(t2), std::forward<T1>(t1));
+}
+
+flip(g, i, 42);  // i将以int&类型传递给g, 42将以int&&类型传递给g
+```
+
+
+
