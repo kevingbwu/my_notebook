@@ -374,5 +374,115 @@ void flip(F f, T1 &&t1, T2 &&t2)
 flip(g, i, 42);  // i将以int&类型传递给g, 42将以int&&类型传递给g
 ```
 
+### 重载与模板
 
+函数模板可以被另一个模板或一个普通非模板函数重载
 
+#### 编写重载模板
+
+```c++
+// 一组调试函数
+
+// print any type we don't otherwise handle
+template <typename T> string debug_rep(const T &t)
+{
+    ostringstream ret; // see § 8.3 (p. 321)
+    ret << t; // uses T's output operator to print a representation of t
+    return ret.str(); // return a copy of the string to which ret is bound
+}
+
+// 定义打印指针的debug_rep版本
+
+// print pointers as their pointer value, followed by the object to which the pointer points
+// 此函数不能用于打印字符指针
+template <typename T> string debug_rep(T *p)
+{
+    ostringstream ret;
+    ret << "pointer: " << p; // print the pointer's own value
+    if (p)
+        ret << " " << debug_rep(*p); // print the value to which p points
+    else
+        ret << " null pointer"; // or indicate that the p is null
+    return ret.str(); // return a copy of the string to which ret is bound
+}
+
+// 只实例化第一个版本
+string s("hi");
+cout << debug_rep(s) << endl;
+
+// 两个函数都生成可行的实例
+// 第一个版本实例化 debug_rep(const string* &), T绑定到 string *
+// 第二个版本实例化 debug_rep(string*), T被绑定到 string
+cout << debug_rep(&s) << endl;
+
+// 第二个版本的debug_rep的实例是此调用的精确匹配
+```
+
+#### 多个可行的版本
+
+```c++
+const string *sp = &s;
+cout << debug_rep(sp) << endl;
+
+// 两个版本都是可行的，都是精确匹配
+// 选择更特例化的版本
+// 模板debug_rep(const T&)本质上可以用于任何类型, 包括指针类型. 此模板比debug_rep(T *)更通用, 后者只能用于指针类型
+```
+
+#### 非模板和模板重载
+
+```c++
+// print strings inside double quotes
+string debug_rep(const string &s)
+{
+    return '"' + s + '"';
+}
+
+// 有两个同样好的可行函数
+// debug_rep<string>(const string&)
+// debug_rep(const string&)
+string s("hi");
+cout << debug_rep(s) << endl;
+
+// 编译器选择非模板版本
+```
+
+#### 重载模板和类型转换
+
+```c++
+cout << debug_rep("hi world!") << endl; // calls debug_rep(T*)
+
+// 三个debug_rep版本都是可行的
+// debug_rep(const T&), with T bound to char[10]
+// debug_rep(T*), with T bound to const char
+// debug_rep(const string&), which requires a conversion from const char* to string. 需要进行类型转换, 没有精确匹配那么好
+
+// 编译器选择 debug_rep(T*), 更加特例化
+
+// 如果希望将字符指针按string处理, 可以定义另外两个非模板重载版本
+// convert the character pointers to string and call the string version of debug_rep
+string debug_rep(char *p)
+{
+    return debug_rep(string(p));
+}
+string debug_rep(const char *p)
+{
+    return debug_rep(string(p));
+}
+```
+
+#### 缺少声明可能导致程序行为异常
+
+```c++
+template <typename T> string debug_rep(const T &t);
+template <typename T> string debug_rep(T *p);
+// the following declaration must be in scope
+// for the definition of debug_rep(char*) to do the right thing
+string debug_rep(const string &);
+string debug_rep(char *p)
+{
+    // if the declaration for the version that takes a const string& is not in scope
+    // the return will call debug_rep(const T&) with T instantiated to string
+    return debug_rep(string(p));
+}
+```
