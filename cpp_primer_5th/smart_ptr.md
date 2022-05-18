@@ -40,7 +40,7 @@ if (p1 && p1->empty())
 
 **shared_ptr独有的操作**
 
-| 操作 <div style="width:200px"> | 解释 |
+| 操作 <div style="width:220px"> | 解释 |
 | ---  | ---  |
 | `make_shared<T>(args)` | 返回一个shared_ptr，指向一个动态分配的类型为T的对象，使用args初始化此对象 |
 | `shared_ptr<T> p(q)` | p是shared_ptr q的拷贝：此操作会递增q中的计数器，q中的指针必须能转换为T* |
