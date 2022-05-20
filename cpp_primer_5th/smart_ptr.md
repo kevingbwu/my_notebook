@@ -477,7 +477,9 @@ class StrBlob {
     // return StrBlobPtr to the first and one past the last elements
     StrBlobPtr begin() { return StrBlobPtr(*this); }
     StrBlobPtr end()
-    { auto ret = StrBlobPtr(*this, data->size());
-    return ret; }
+    { 
+        auto ret = StrBlobPtr(*this, data->size());
+        return ret;
+    }
 };
 ```
