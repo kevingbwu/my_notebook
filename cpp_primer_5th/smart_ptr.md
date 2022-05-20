@@ -483,3 +483,155 @@ class StrBlob {
     }
 };
 ```
+
+## 动态数组
+
+一次分配一个对象数组的方法：
+
+* new
+* 标准库提供的allocator类，允许将分配和初始化分离
+
+### new和数组
+
+```c++
+// call get_size to determine how many ints to allocate
+int *pia = new int[get_size()]; // pia points to the first of these ints
+
+typedef int arrT[42]; // arrT names the type array of 42 ints
+int *p = new arrT; // allocates an array of 42 ints; p points to the first one
+```
+
+#### 分配一个数组会得到一个元素类型的指针
+
+* 不能对动态数组调用begin或end
+* 不能用范围for语句、
+
+#### 初始化动态分配的数组
+
+> C++11：元素初始化器
+
+```c++
+int *pia = new int[10]; // block of ten uninitialized ints
+int *pia2 = new int[10](); // block of ten ints value initialized to 0
+string *psa = new string[10]; // block of ten empty strings
+string *psa2 = new string[10](); // block of ten empty strings
+
+// block of ten ints each initialized from the corresponding initializer
+int *pia3 = new int[10]{0,1,2,3,4,5,6,7,8,9};
+// block of ten strings; the first four are initialized from the given initializers
+// remaining elements are value initialized
+string *psa3 = new string[10]{"a", "an", "the", string(3,'x')};
+```
+
+#### 动态分配一个空数组是合法的
+
+```c++
+size_t n = get_size(); // get_size returns the number of elements needed
+// n可以是0，返回一个合法的非空指针
+int* p = new int[n]; // allocate an array to hold the elements
+for (int* q = p; q != p + n; ++q)
+    /* process the array */ ;
+
+char arr[0]; // error: cannot define a zero-length array
+char *cp = new char[0]; // ok: but cp can't be dereferenced
+```
+
+#### 释放动态数组
+
+```c++
+delete p; // p must point to a dynamically allocated object or be null
+delete [] pa; // pa must point to a dynamically allocated array or be null
+
+typedef int arrT[42]; // arrT names the type array of 42 ints
+int *p = new arrT; // allocates an array of 42 ints; p points to the first one
+delete [] p; // brackets are necessary because we allocated an array
+
+// delete一个指向数组的指针时忽略了方括号，其行为是未定义的
+```
+
+#### 智能指针和动态数组
+
+可以管理new分配的数组的unique_ptr版本，在对象类型后面跟一对空方括号
+
+```c++
+// up points to an array of ten uninitialized ints
+unique_ptr<int[]> up(new int[10]);
+up.release(); // automatically uses delete[] to destroy its pointer
+```
+
+**指向数组的unique_ptr**
+
+| 操作 | 解释 |
+| --- | --- |
+| 不支持成员访问运算符（点和箭头） | |
+| `unique_ptr<T[]> u` | u指向一个动态分配的数组，数组元素类型为T |
+| `unique_ptr<T[]> u(p)` | u指向内置指针p所指向的动态分配的数组。p必须能转换为类型T* |
+| `u[i]` | 返回u拥有的数组中位置i处的对象 |
+
+shared_ptr不直接支持管理动态数组，必须提供自己定义的删除器
+
+```c++
+// to use a shared_ptr we must supply a deleter
+shared_ptr<int> sp(new int[10], [](int *p) { delete[] p; });
+sp.reset(); // uses the lambda we supplied that uses delete[] to free the array
+
+// shared_ptrs don't have subscript operator and don't support pointer arithmetic
+for (size_t i = 0; i != 10; ++i)
+    *(sp.get() + i) = i; // use get to get a built-in pointer
+```
+
+### allocator类
+
+将内存分配和对象构造分离
+
+**标准库allocator类及其算法**
+
+| 操作 <div style="width:200px"> | 解释 |
+| --- | --- |
+| `allocator<T> a` | 定义了一个名为a的allocator对象，它可以为类型T的对象分配内存 |
+| `a.allocate(n)` | 分配一段原始的、未构造的内存，保存n个类型为T的对象 |
+| `a.deallocate(p, n)` | 释放从T*指针p中地址开始的内存，这块内存保存了n个类型为T的对象；p必须是一个先前由allocate返回的指针，且n必须是p创建时所要求的大小。在调用deallocate之前，用户必须对每个在这块内存中创建的对象调用destroy |
+| `a.construct(p, args)` | p必须是一个类型为T*的指针，指向一块原始内存；args被传递给类型为T的构造函数，用来在p指向的内存中构造一个对象 |
+| `a.destroy(p)` | p为T*类型的指针，此算法对p指向的对象执行析构函数 |
+
+```c++
+allocator<string> alloc; // object that can allocate strings
+auto const p = alloc.allocate(n); // allocate n unconstructed strings
+
+auto q = p; // q will point to one past the last constructed element
+alloc.construct(q++); // *q is the empty string
+alloc.construct(q++, 10, 'c'); // *q is cccccccccc
+alloc.construct(q++, "hi"); // *q is hi!
+
+cout << *p << endl; // ok: uses the string output operator
+cout << *q << endl; // disaster: q points to unconstructed memory!
+
+while (q != p)
+    alloc.destroy(--q); // free the strings we actually allocated
+
+// 释放内存
+alloc.deallocate(p, n);
+```
+
+#### 拷贝和填充未初始化内存的算法
+
+**allocator算法，在给定目的位置创建元素，不需要系统分配内存**
+
+```c++
+// uninitialized_copy(b, e, b2)
+// uninitialized_copy_n(b, n, b2)
+// uninitialized_fill(b, e, t)
+// uninitialized_fill_n(b, n, t)
+
+vector<int> vi = {1,2,3,4,5};
+allocator<int> alloc;
+auto p = alloc.allocate(vi.size() * 2);
+auto q = uninitialized_copy(vi.begin(), vi.end(), p);
+uninitialized_fill_n(q, vi.size(), 42);
+q = q + vi.size();
+
+while(p != q) {
+    cout << *p << endl;
+    alloc.destroy(p++);
+}
+```
