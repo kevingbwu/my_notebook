@@ -190,3 +190,140 @@ void StrBlob::pop_back()
     data->pop_back();
 }
 ```
+
+### shared_ptr和new结合使用
+
+可以用new返回的指针来初始化智能指针，接受指针参数的智能指针构造函数是explict的，不能讲一个内置指针隐式转换为一个智能指针，必须使用直接初始化形式。一个返回shared_ptr的函数不能在其返回语句中隐式转换为一个普通指针
+
+```c++
+shared_ptr<double> p1; // shared_ptr that can point at a double
+shared_ptr<int> p2(new int(42)); // p2 points to an int with value 42
+
+shared_ptr<int> p1 = new int(1024); // error: must use direct initialization
+shared_ptr<int> p2(new int(1024)); // ok: uses direct initialization
+
+shared_ptr<int> clone(int p) {
+    return new int(p); // error: implicit conversion to shared_ptr<int>
+}
+
+shared_ptr<int> clone(int p) {
+    // ok: explicitly create a shared_ptr<int> from int*
+    return shared_ptr<int>(new int(p));
+}
+```
+
+**定义和改变shared_ptr的其他方法**
+
+| 操作 <div style="width:200px"> | 解释 |
+| --- | --- |
+| `shared_ptr<T> p(q)` | p管理内置指针q所指向的对象；q必须指向new分配的内存，且能够转换为T*类型 |
+| `shared_ptr<T> p(u)` | p从unique_ptr u那里接管了对象的所有权；将u置为空 |
+| `shared_ptr<T> p(q, d)` | p接管了内置指针q所指向的对象的所有权。q必须能转换为T*类型。p将使用可调用对象d来代替delete |
+| `shared_ptr<T> p(p2, d)` | p是shared_ptr p2的拷贝，唯一的区别是p将用可调用对象d来代替delete |
+| `p.reset()` <br> `p.reset(q)` <br> `p.reset(q, d)` | 若p是唯一指向其对象的shared_ptr，reset会释放此对象。若传递了可选的参数内置指针q，会令p指向q，否则会将p置为空。若还传递了参数d，将会调用d而不是delete来释放q |
+
+#### 不要混合使用普通指针和智能指针
+
+```c++
+// ptr is created and initialized when process is called
+void process(shared_ptr<int> ptr)
+{
+    // use ptr
+} // ptr goes out of scope and is destroyed
+
+shared_ptr<int> p(new int(42)); // reference count is 1
+process(p); // copying p increments its count; in process the reference count is 2
+int i = *p; // ok: reference count is 1
+
+int *x(new int(1024)); // dangerous: x is a plain pointer, not a smart pointer
+process(x); // error: cannot convert int* to shared_ptr<int>
+process(shared_ptr<int>(x)); // legal, but the memory will be deleted!
+int j = *x; // undefined: x is a dangling pointer!
+```
+
+**不应该再使用内置指针来访问shared_ptr所指向的内存**
+
+#### 不要使用get初始化另一个之智能指针或为智能指针赋值
+
+get函数返回一个内置指针，指向智能指针管理的对象，用于需要向不使用智能指针的代码传递一个内置指针。
+
+**使用get返回的指针的代码不能delete此指针，将另一个智能指针也绑定到get返回的指针上是错误的**
+
+```c++
+shared_ptr<int> p(new int(42)); // reference count is 1
+int *q = p.get(); // ok: but don't use q in any way that might delete its pointer
+
+{ // new block
+    // undefined: two independent shared_ptrs point to the same memory
+    shared_ptr<int>(q);
+} // block ends, q is destroyed, and the memory to which q points is freed
+
+int foo = *p; // undefined; the memory to which p points was freed
+```
+
+#### 其他shared_ptr操作
+
+```c++
+if (!p.unique())
+    p.reset(new string(*p)); // we aren't alone; allocate a new copy
+*p += newVal; // now that we know we're the only pointer, okay to change this object
+```
+
+### 智能指针和异常
+
+智能指针是一个简单的确保资源被释放的方法
+
+```c++
+void f()
+{
+    shared_ptr<int> sp(new int(42)); // allocate a new object
+    // code that throws an exception that is not caught inside f
+} // shared_ptr freed automatically when the function ends
+```
+
+发生异常时，直接管理的内存不会自动释放
+
+```c++
+void f()
+{
+    int *ip = new int(42); // dynamically allocate a new object
+    // code that throws an exception that is not caught inside f
+    delete ip; // free the memory before exiting
+}
+```
+
+#### 智能指针和哑类
+
+为C和C++两种语言设计的类，可能没有定义析构函数，通常要求用户显示地释放所使用的资源
+
+```c++
+struct destination; // represents what we are connecting to
+struct connection; // information needed to use the connection
+connection connect(destination*); // open the connection
+void disconnect(connection); // close the given connection
+void f(destination &d /* other parameters */)
+{
+    // get a connection; must remember to close it when done
+    connection c = connect(&d);
+    // use the connection
+    // if we forget to call disconnect before exiting f, there will be no way to close c
+}
+
+// connection没有析构函数
+```
+
+#### 使用我们自己的释放操作
+
+```c++
+// 定义删除器
+void end_connection(connection *p) { disconnect(*p); }
+
+// 创建shared_ptr时，可以传递一个指向删除器函数的参数
+void f(destination &d /* other parameters */)
+{
+    connection c = connect(&d);
+    shared_ptr<connection> p(&c, end_connection);
+    // use the connection
+    // when f exits, even if by an exception, the connection will be properly closed
+}
+```
