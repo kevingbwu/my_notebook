@@ -327,3 +327,157 @@ void f(destination &d /* other parameters */)
     // when f exits, even if by an exception, the connection will be properly closed
 }
 ```
+
+### unique_ptr
+
+一个unique_ptr拥有它所指向的对象。定义一个unique_ptr时，需要将其绑定到一个new返回的指针上，必须直接初始化
+
+```c++
+unique_ptr<double> p1; // unique_ptr that can point at a double
+unique_ptr<int> p2(new int(42)); // p2 points to int with value 42
+
+unique_ptr<string> p1(new string("Stegosaurus"));
+unique_ptr<string> p2(p1); // error: no copy for unique_ptr
+unique_ptr<string> p3;
+p3 = p2; // error: no assign for unique_ptr
+```
+
+**unique_ptr支持的操作**
+
+| 操作 <div style="width:200px"> | 解释 |
+| --- | --- |
+| `unique_ptr<T> u1` | 空unique_ptr，可以指向类型为T的对象。u1会使用delete释放它的指针 |
+| `unique_ptr<T, D> u2` | u2会使用一个类型为D的可调用对象释放它的指针 |
+| `unique_ptr<T, D> u(d)` | 空unique_ptr，可以指向类型为T的对象。用类型为D的对象d来代替delete |
+| `u = nullptr` | 释放u指向的对象，将u置为空 |
+| `u.release()` | u释放对指针的控制权，返回指针，并将u置为空 |
+| `u.reset()` <br> `u.reset(q)` <br> `u.reset(nullptr)` | 释放u指向的对象。如果提供了内置指针q，令u指向这个对象；否则将u置为空 |
+
+```c++
+// transfers ownership from p1 (which points to the string Stegosaurus) to p2
+unique_ptr<string> p2(p1.release()); // release makes p1 null
+unique_ptr<string> p3(new string("Trex"));
+// transfers ownership from p3 to p2
+p2.reset(p3.release()); // reset deletes the memory to which p2 had pointed
+
+p2.release(); // WRONG: p2 won't free the memory and we've lost the pointer
+auto p = p2.release(); // ok, but we must remember to delete(p)
+```
+
+#### 传递unique_ptr参数和返回unique_ptr
+
+不能拷贝unique_ptr有一个例外：可以拷贝或赋值一个将要被销毁的unique_ptr
+
+```c++
+unique_ptr<int> clone(int p) {
+    // ok: explicitly create a unique_ptr<int> from int*
+    return unique_ptr<int>(new int(p));
+}
+
+unique_ptr<int> clone(int p) {
+    unique_ptr<int> ret(new int(p));
+    // . . .
+    return ret;
+}
+```
+
+#### 向unique_ptr传递删除器
+
+```c++
+// p points to an object of type objT and uses an object of type delT to free that object
+// it will call an object named fcn of type delT
+unique_ptr<objT, delT> p (new objT, fcn);
+
+void f(destination &d /* other needed parameters */)
+{
+    connection c = connect(&d); // open the connection
+    // when p is destroyed, the connection will be closed
+    unique_ptr<connection, decltype(end_connection)*>
+    p(&c, end_connection);
+    // use the connection
+    // when f exits, even if by an exception, the connection will be properly closed
+}
+```
+
+### weak_ptr
+
+不控制所指向对象生存期的智能指针，指向由一个shared_ptr管理的对象，不会改变shared_ptr的引用计数
+
+**weak_ptr支持的操作**
+
+| 操作 <div style="width:200px"> | 解释 |
+| --- | --- |
+| `weak_ptr<T> w` | 空weak_ptr可以指向类型为T的对象 |
+| `weak_ptr<T> w(sp)` | 与shared_ptr sp指向相同对象的weak_ptr。T必须能够转换为sp指向的类型 |
+| `w = p` | p可以是一个shared_ptr或一个weak_ptr。赋值后w与p共享对象 |
+| `w.reset()` | 将w置为空 |
+| `w.use_count()` | 与w共享对象的shared_ptr的数量 |
+| `w.expired()` | 若w.use_count()为0，返回true，否则返回false |
+| `w.lock()` | 如果expired为true，返回一个空shared_ptr；否则返回一个指向w的对象的shared_ptr |
+
+```c++
+auto p = make_shared<int>(42);
+weak_ptr<int> wp(p); // wp weakly shares with p; use count in p is unchanged
+
+if (shared_ptr<int> np = wp.lock()) { // true if np is not null
+    // inside the if, np shares its object with p
+}
+```
+
+#### 使用weak_ptr为StrBlob类定义一个伴随指针类StrBlobPtr
+
+```c++
+// StrBlobPtr throws an exception on attempts to access a nonexistent element
+class StrBlobPtr {
+public:
+    StrBlobPtr(): curr(0) { }
+    StrBlobPtr(StrBlob &a, size_t sz = 0) : wptr(a.data), curr(sz) { }
+    std::string& deref() const;
+    StrBlobPtr& incr(); // prefix version
+private:
+    // check returns a shared_ptr to the vector if the check succeeds
+    std::shared_ptr<std::vector<std::string>> check(std::size_t, const std::string&) const;
+    // store a weak_ptr, which means the underlying vector might be destroyed
+    std::weak_ptr<std::vector<std::string>> wptr;
+    std::size_t curr; // current position within the array
+};
+
+std::shared_ptr<std::vector<std::string>>
+StrBlobPtr::check(std::size_t i, const std::string &msg) const
+{
+    auto ret = wptr.lock(); // is the vector still around?
+    if (!ret)
+        throw std::runtime_error("unbound StrBlobPtr");
+    if (i >= ret->size())
+        throw std::out_of_range(msg);
+    return ret; // otherwise, return a shared_ptr to the vector
+}
+
+// defined functions named deref and incr to dereference and increment the StrBlobPtr, respectively.
+std::string& StrBlobPtr::deref() const
+{
+    auto p = check(curr, "dereference past end");
+    return (*p)[curr]; // (*p) is the vector to which this object points
+}
+
+// prefix: return a reference to the incremented object
+StrBlobPtr& StrBlobPtr::incr()
+{
+    // if curr already points past the end of the container, can't increment it
+    check(curr, "increment past end of StrBlobPtr");
+    ++curr; // advance the current state
+    return *this;
+}
+
+// forward declaration needed for friend declaration in StrBlob
+class StrBlobPtr;
+class StrBlob {
+    friend class StrBlobPtr;
+    // other members as in § 12.1.1
+    // return StrBlobPtr to the first and one past the last elements
+    StrBlobPtr begin() { return StrBlobPtr(*this); }
+    StrBlobPtr end()
+    { auto ret = StrBlobPtr(*this, data->size());
+    return ret; }
+};
+```

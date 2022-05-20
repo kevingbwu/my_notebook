@@ -493,7 +493,7 @@ template class Blob<string>; // instantiates all members of the class template
 // shared_ptr
 ```
 
-#### 编译器时绑定删除器
+#### 编译时绑定删除器
 
 删除器的类型是一个unique_ptr对象类型的一部分
 
