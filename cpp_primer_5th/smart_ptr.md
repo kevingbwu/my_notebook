@@ -635,3 +635,5 @@ while(p != q) {
     alloc.destroy(p++);
 }
 ```
+
+## [文本查询程序](code/text_query_main.cpp)
