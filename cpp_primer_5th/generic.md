@@ -490,7 +490,7 @@ istream_iterator<int> in(cin), eof;
 cout << accumulate(in, eof, 0) << endl;
 ```
 
-#### 0stream_iterator操作
+#### ostream_iterator操作
 
 ```c++
 ostream_iterator<int> out_iter(cout, " ");
