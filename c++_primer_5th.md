@@ -2,6 +2,8 @@
 
 ## [容器](cpp_primer_5th/container.md)
 
+## [泛型算法](cpp_primer_5th/generic.md)
+
 ## [智能指针](cpp_primer_5th/smart_ptr.md)
 
 ## [模板（1）](cpp_primer_5th/template1.md)
