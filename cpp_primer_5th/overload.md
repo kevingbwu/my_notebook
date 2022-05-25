@@ -479,7 +479,7 @@ public:
 
 实践中，定义向bool的类型转换比较普遍
 
-#### 显示的类型转换运算符
+#### 显式的类型转换运算符
 
 > C++11：explicit conversion operator
 
@@ -496,7 +496,7 @@ si + 3; // error: implicit is conversion required, but operator int is explicit
 static_cast<int>(si) + 3; // ok: explicitly request the conversion
 ```
 
-如果表达式被用作条件，显示的类型转换将被隐式地执行
+如果表达式被用作条件，显式的类型转换将被隐式地执行
 
 ```c++
 while (std::cin >> value) 
