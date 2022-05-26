@@ -6,6 +6,8 @@
 
 ## [智能指针](cpp_primer_5th/smart_ptr.md)
 
+## [拷贝控制](cpp_primer_5th/copy_control.md)
+
 ## [重载运算](cpp_primer_5th/overload.md)
 
 ## [模板（1）](cpp_primer_5th/template1.md)
