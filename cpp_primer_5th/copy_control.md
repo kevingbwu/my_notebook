@@ -387,5 +387,5 @@ HasPtr& HasPtr::operator=(HasPtr rhs)
 * `Message类`：表示消息，可以出现在多个`Folder`中，内容只有一个副本；如果一条`Message`的内容被改变，则从它所在的任何`Folder`来浏览此`Message`，都会看到改变的内容
 * `Folder类`：表示消息目录
 
-
+[message_folder_main.cpp](code/message_folder_main.cpp)
 
