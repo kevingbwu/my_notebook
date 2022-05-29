@@ -389,3 +389,13 @@ HasPtr& HasPtr::operator=(HasPtr rhs)
 
 [message_folder_main.cpp](code/message_folder_main.cpp)
 
+
+## 动态内存管理类
+
+某些类需要在运行时分配可变大小的内存空间，通常可以使用标准库容器来保存数据。如果需要自己进行内存分配，一般来说必须定义自己的拷贝控制成员来管理所分配的内存。
+
+### StrVec
+
+实现标准库vector类的一个简化版本，只用于string
+
+[StrVec](code/strvec.cpp)
