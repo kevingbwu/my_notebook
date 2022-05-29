@@ -175,3 +175,217 @@ HasPtr q(p); // now both p and q point to invalid memory!
 ```
 
 **如果一个类需要一个拷贝构造函数，几乎可以肯定它也需要一个拷贝赋值运算符，反之亦然**
+
+### 使用=default
+
+=default显式地要求编译器生成合成的版本
+
+```c++
+// 类内用=default，合成的函数将隐式地声明为内联的
+class Sales_data {
+public:
+    // copy control; use defaults
+    Sales_data() = default;
+    Sales_data(const Sales_data&) = default;
+    Sales_data& operator=(const Sales_data &);
+    ~Sales_data() = default;
+    // other members as before
+};
+
+// 如果不希望合成的成员是内联函数，应该只对成员的类外定义使用=default
+Sales_data& Sales_data::operator=(const Sales_data&) = default;
+```
+
+### 阻止拷贝
+
+如果不定义拷贝控制成员，编译器会生成合成的版本。但是如果拷贝操作没有合理的意义，必须采用某种机制组织拷贝或赋值
+
+#### 定义删除的函数
+
+参数列表后加=delete
+
+```c++
+struct NoCopy {
+    NoCopy() = default; // use the synthesized default constructor
+    NoCopy(const NoCopy&) = delete; // no copy
+    NoCopy &operator=(const NoCopy&) = delete; // no assignment
+    ~NoCopy() = default; // use the synthesized destructor
+    // other members
+};
+```
+
+#### 析构函数不能是删除的成员
+
+如果析构函数被删除，不允许定义该类型的变量。可以动态分配这种类型的对象，不能释放这些对象
+
+```c++
+struct NoDtor {
+    NoDtor() = default; // use the synthesized default constructor
+    ~NoDtor() = delete; // we can't destroy objects of type NoDtor
+};
+NoDtor nd; // error: NoDtor destructor is deleted
+NoDtor *p = new NoDtor(); // ok: but we can't delete p
+delete p; // error: NoDtor destructor is deleted
+```
+
+#### 合成的拷贝控制成员可能是删除的
+
+对某些类来说，编译器将这些合成的成员定义为删除的：
+
+如果一个类有数据成员不能默认构造、拷贝、复制、销毁，则对应的成员函数将被定义为删除的
+
+#### private拷贝控制
+
+C++11之前，通过将拷贝构造函数和拷贝赋值运算符声明为private的来阻止拷贝
+
+用户代码不能拷贝这个类型的对象，友元和成员函数可以拷贝对象。为了阻止友元和成员函数进行拷贝，将这些拷贝控制成员声明为private的，但并不定义它们
+
+```c++
+class PrivateCopy {
+    // no access specifier; following members are private by default; see § 7.2
+    // copy control is private and so is inaccessible to ordinary user code
+    PrivateCopy(const PrivateCopy&);
+    PrivateCopy &operator=(const PrivateCopy&);
+    // other members
+public:
+    PrivateCopy() = default; // use the synthesized default constructor
+    ~PrivateCopy(); // users can define objects of this type but not copy them
+};
+```
+
+## 拷贝控制和资源管理
+
+如果一个类需要定义析构函数，那么几乎肯定也需要定义拷贝构造函数和拷贝赋值运算符。为了定义这些成员，首先必须确定拷贝语义。
+
+* 类的行为像一个值：拷贝时副本和原对象是完全独立的，改变副本不会对原对象有任何影响
+* 行为像指针的类，副本和原对象使用相同的底层数据，改变副本会改变原对象
+
+### 行为像值的类
+
+```c++
+class HasPtr {
+public:
+    HasPtr(const std::string &s = std::string()) : 
+        ps(new std::string(s)), i(0) { }
+    // each HasPtr has its own copy of the string to which ps points
+    HasPtr(const HasPtr &p) :
+        ps(new std::string(*p.ps)), i(p.i) { }
+    HasPtr& operator=(const HasPtr &);
+    ~HasPtr() { delete ps; }
+private:
+    std::string *ps;
+    int i;
+};
+
+// 赋值运算符通常组合了析构函数和构造函数的操作
+// 必须正确处理自赋值
+HasPtr& HasPtr::operator=(const HasPtr &rhs)
+{
+    auto newp = new string(*rhs.ps); // copy the underlying string
+    delete ps; // free the old memory
+    ps = newp; // copy data from rhs into this object
+    i = rhs.i;
+    return *this; // return this object
+}
+
+// WRONG way to write an assignment operator!
+HasPtr& HasPtr::operator=(const HasPtr &rhs)
+{
+    delete ps; // frees the string to which this object points
+    // if rhs and *this are the same object, we're copying from deleted memory!
+    ps = new string(*(rhs.ps));
+    i = rhs.i;
+    return *this;
+}
+```
+
+### 行为像指针的类
+
+最好使用shared_ptr来管理类中的资源
+
+如果希望直接管理资源，使用引用计数，计数器保存在动态内存中
+
+```c++
+// 计数器不能作为HasPtr对象的成员，如果引用计数保存在每个对象中，创建p3时如何正确更新？更新p1中的计数器并将其拷贝到p3中，但如何更新p2中的计数器？
+HasPtr p1("Hiya!");
+HasPtr p2(p1); // p1 and p2 point to the same string
+HasPtr p3(p1); // p1, p2, and p3 all point to the same string
+```
+
+```c++
+class HasPtr {
+public:
+    // constructor allocates a new string and a new counter, which it sets to 1
+    HasPtr(const std::string &s = std::string()):
+        ps(new std::string(s)), i(0), use(new std::size_t(1))
+    {}
+    // copy constructor copies all three data members and increments the counter
+    HasPtr(const HasPtr &p):
+    ps(p.ps), i(p.i), use(p.use) { ++*use; }
+    HasPtr& operator=(const HasPtr&);
+    ~HasPtr();
+private:
+    std::string *ps;
+    int i;
+    std::size_t *use; // member to keep track of how many objects share *ps
+};
+
+HasPtr::~HasPtr()
+{
+    if (--*use == 0) { // if the reference count goes to 0
+        delete ps; // delete the string
+        delete use; // and the counter
+    }
+}
+
+HasPtr& HasPtr::operator=(const HasPtr &rhs)
+{
+    ++*rhs.use; // increment the use count of the right-hand operand
+    if (--*use == 0) { // then decrement this object's counter
+        delete ps; // if no other users
+        delete use; // free this object's allocated members
+    }
+    ps = rhs.ps; // copy data from rhs into this object
+    i = rhs.i;
+    use = rhs.use;
+    return *this; // return this object
+}
+```
+
+## 交换操作
+
+```c++
+class HasPtr {
+    friend void swap(HasPtr&, HasPtr&);
+    // other members as in § 13.2.1
+};
+
+// 每个swap调用应该都是未加限定的，应该是swap，而不是std::swap。
+inline void swap(HasPtr &lhs, HasPtr &rhs)
+{
+    using std::swap;
+    swap(lhs.ps, rhs.ps); // swap the pointers, not the string data
+    swap(lhs.i, rhs.i); // swap the int members
+}
+```
+
+#### 拷贝并交换技术
+
+```c++
+// note rhs is passed by value, which means the HasPtr copy constructor
+// copies the string in the right-hand operand into rhs
+HasPtr& HasPtr::operator=(HasPtr rhs)
+{
+    // swap the contents of the left-hand operand with the local variable rhs
+    swap(*this, rhs); // rhs now points to the memory this object had used
+    return *this; // rhs is destroyed, which deletes the pointer in rhs
+}
+```
+
+## 拷贝控制示例
+
+* `Message类`：表示消息，可以出现在多个`Folder`中，内容只有一个副本；如果一条`Message`的内容被改变，则从它所在的任何`Folder`来浏览此`Message`，都会看到改变的内容
+* `Folder类`：表示消息目录
+
+
+
