@@ -399,3 +399,299 @@ HasPtr& HasPtr::operator=(HasPtr rhs)
 实现标准库vector类的一个简化版本，只用于string
 
 [StrVec](code/strvec.cpp)
+
+## 对象移动
+
+某些情况下，对象拷贝后就立即被销毁了。在这些情况下，移动而非拷贝对象会大幅提升性能
+
+IO类或unique_ptr这样的类包含不能被共享的资源，这些类型的对象不能拷贝但可以移动
+
+**容器中可以保存不可拷贝的类型，只要它们能被移动即可**
+
+### 右值引用
+
+> C++11：为了支持移动操作，引入右值引用
+
+右值引用必须绑定到右值的引用，只能绑定到一个将要销毁的对象
+
+```c++
+int &r = i; // ok: r refers to i
+int &&rr = i; // error: cannot bind an rvalue reference to an lvalue
+int &r2 = i * 42; // error: i * 42 is an rvalue
+const int &r3 = i * 42; // ok: we can bind a reference to const to an rvalue
+int &&rr2 = i * 42; // ok: bind rr2 to the result of the multiplication
+// 变量是左值
+int &&rr1 = 42; // ok: literals are rvalues
+int &&rr2 = rr1; // error: the expression rr1 is an lvalue!
+```
+
+可以将一个const的左值引用或者一个右值引用绑定到生成右值的表达式上
+
+#### 标准库move函数
+
+显式地将一个左值转换为对应的右值引用类型
+
+> C++11：调用move来获得绑定到左值上的右值引用
+
+```c++
+int &&rr3 = std::move(rr1); // ok
+```
+
+**可以销毁一个移后源对象，也可以赋予新值，但不能使用一个移后源对象的值**
+
+### 移动构造函数和移动赋值运算符
+
+#### 移动构造函数
+
+一旦资源完成移动，源对象必须不再指向被移动的资源，这些资源的所有权已经归属新创建的对象
+
+```c++
+class StrVec {
+public:
+    StrVec(StrVec&&) noexcept; // move constructor
+    // other members as before
+};
+
+StrVec::StrVec(StrVec &&s) noexcept // move won't throw any exceptions
+// member initializers take over the resources in s
+    : elements(s.elements), first_free(s.first_free), cap(s.cap)
+{
+    // leave s in a state in which it is safe to run the destructor
+    s.elements = s.first_free = s.cap = nullptr;
+}
+```
+
+#### 移动赋值运算符
+
+```c++
+StrVec &StrVec::operator=(StrVec &&rhs) noexcept
+{
+    // direct test for self-assignment
+    if (this != &rhs) {
+        free(); // free existing elements
+        elements = rhs.elements; // take over resources from rhs
+        first_free = rhs.first_free;
+        cap = rhs.cap;
+        // leave rhs in a destructible state
+        rhs.elements = rhs.first_free = rhs.cap = nullptr;
+    }
+    return *this;
+}
+```
+
+#### 移后源对象必须可析构
+
+移后源对象还是有效的，但对留下的值不应做任何假设
+
+#### 合成的移动操作
+
+如果一个类定义了自己的拷贝构造函数、拷贝赋值运算符或者析构函数，编译器不会为它合成移动构造函数和移动赋值运算符
+
+只有当一个类没有定义任何自己版本的拷贝控制成员，且类的每个非static数据成员都可以移动时，编译器才会为它合成移动构造函数或移动赋值运算符
+
+```c++
+// the compiler will synthesize the move operations for X and hasX
+struct X {
+    int i; // built-in types can be moved
+    std::string s; // string defines its own move operations
+};
+struct hasX {
+    X mem; // X has synthesized move operations
+};
+X x, x2 = std::move(x); // uses the synthesized move constructor
+hasX hx, hx2 = std::move(hx); // uses the synthesized move constructor
+```
+
+移动操作不会隐式定义为删除的函数。如果显式地要求编译器生成=default的移动操作，且编译器不能移动所有成员，则编译器会将移动操作定义为删除的函数
+
+```c++
+// assume Y is a class that defines its own copy constructor but not a move constructor
+struct hasY {
+    hasY() = default;
+    hasY(hasY&&) = default;
+    Y mem; // hasY will have a deleted move constructor
+};
+hasY hy, hy2 = std::move(hy); // error: move constructor is deleted
+```
+
+#### 移动右值，拷贝左值
+
+```c++
+StrVec v1, v2;
+v1 = v2; // v2 is an lvalue; copy assignment
+StrVec getVec(istream &); // getVec returns an rvalue
+v2 = getVec(cin); // getVec(cin) is an rvalue; move assignment
+```
+
+#### 没有移动构造函数，右值也被拷贝
+
+用拷贝构造函数代替移动构造函数几乎肯定是安全的
+
+```c++
+class Foo {
+public:
+    Foo() = default;
+    Foo(const Foo&); // copy constructor
+    // other members, but Foo does not define a move constructor
+};
+Foo x;
+Foo y(x); // copy constructor; x is an lvalue
+Foo z(std::move(x)); // copy constructor, because there is no move constructor
+```
+
+#### 拷贝并交换赋值运算符和移动操作
+
+```c++
+class HasPtr {
+public:
+    // added move constructor
+    HasPtr(HasPtr &&p) noexcept : ps(p.ps), i(p.i) {
+        p.ps =0;
+    }
+    // assignment operator is both the move- and copy-assignment operator
+    HasPtr& operator=(HasPtr rhs)
+    {
+        swap(*this, rhs); 
+        return *this;
+    }
+    // other members as in § 13.2.1
+};
+
+hp = hp2; // hp2 is an lvalue; copy constructor used to copy hp2
+hp = std::move(hp2); // move constructor moves hp2
+```
+
+[Message类的移动操作](code/message_folder_main.cpp)
+
+#### 移动迭代器
+
+* 普通迭代器解引用返回指向元素的左值
+* 移动迭代器解引用生成一个右值引用
+
+> C++11: `make_move_iterator`将一个普通迭代器转换为一个移动迭代器
+
+```c++
+void StrVec::reallocate()
+{
+    // allocate space for twice as many elements as the current size
+    auto newcapacity = size() ? 2 * size() : 1;
+    auto first = alloc.allocate(newcapacity);
+    // move the elements
+    auto last = uninitialized_copy(make_move_iterator(begin()),
+                                   make_move_iterator(end()),
+                                   first);
+    free(); // free the old space
+    elements = first; // update the pointers
+    first_free = last;
+    cap = elements + newcapacity;
+}
+```
+
+### 右值引用和成员函数
+
+成员函数同时提供拷贝和移动版本，拷贝版本接受一个指向const的左值引用，移动版本接受一个指向非const的右值引用
+
+```c++
+void push_back(const X&); // copy: binds to any kind of X
+void push_back(X&&); // move: binds only to modifiable rvalues of type X
+
+class StrVec {
+public:
+    void push_back(const std::string&); // copy the element
+    void push_back(std::string&&); // move the element
+    // other members as before
+};
+
+// unchanged from the original version in § 13.5
+void StrVec::push_back(const string& s)
+{
+    chk_n_alloc(); // ensure that there is room for another element
+    // construct a copy of s in the element to which first_free points
+    alloc.construct(first_free++, s);
+}
+
+void StrVec::push_back(string &&s)
+{
+    chk_n_alloc(); // reallocates the StrVec if necessary
+    alloc.construct(first_free++, std::move(s));
+}
+
+StrVec vec; // empty StrVec
+string s = "some string or another";
+vec.push_back(s); // calls push_back(const string&)
+vec.push_back("done"); // calls push_back(string&&)
+```
+
+#### 右值和左值引用成员函数
+
+指出this的左值右值属性的方式：在参数列表后放置一个引用限定符，&或&&，分别指出this可以指向一个左值或右值
+
+```c++
+class Foo {
+public:
+    Foo &operator=(const Foo&) &; // may assign only to modifiable lvalues
+    // other members of Foo
+};
+
+Foo &Foo::operator=(const Foo &rhs) &
+{
+    // do whatever is needed to assign rhs to this object
+    return *this;
+}
+
+Foo &retFoo(); // returns a reference; a call to retFoo is an lvalue
+Foo retVal(); // returns by value; a call to retVal is an rvalue
+Foo i, j; // i and j are lvalues
+i = j; // ok: i is an lvalue
+retFoo() = j; // ok: retFoo() returns an lvalue
+retVal() = j; // error: retVal() returns an rvalue
+i = retVal(); // ok: we can pass an rvalue as the right-hand operand to assignment
+
+class Foo {
+public:
+    Foo someMem() & const; // error: const qualifier must come first
+    Foo anotherMem() const &; // ok: const qualifier comes first
+};
+```
+
+#### 重载和引用函数
+
+综合引用限定符和const来区分一个成员函数的重载版本
+
+```c++
+class Foo {
+public:
+    Foo sorted() &&; // may run on modifiable rvalues
+    Foo sorted() const &; // may run on any kind of Foo
+    // other members of Foo
+private:
+    vector<int> data;
+};
+// this object is an rvalue, so we can sort in place
+Foo Foo::sorted() &&
+{
+    sort(data.begin(), data.end());
+    return *this;
+}
+// this object is either const or it is an lvalue; either way we can't sort in place
+Foo Foo::sorted() const & {
+    Foo ret(*this); // make a copy
+    sort(ret.data.begin(), ret.data.end()); // sort the copy
+    return ret; // return the copy
+}
+
+retVal().sorted(); // retVal() is an rvalue, calls Foo::sorted() &&
+retFoo().sorted(); // retFoo() is an lvalue, calls Foo::sorted() const &
+
+// 定义具有相同名字和相同参数列表的成员函数，必须对所有成员函数都加上引用限定符或者所有都不加
+class Foo {
+public:
+    Foo sorted() &&;
+    Foo sorted() const; // error: must have reference qualifier
+    // Comp is type alias for the function type (see § 6.7)
+    // that can be used to compare int values
+    using Comp = bool(const int&, const int&);
+    Foo sorted(Comp*); // ok: different parameter list
+    Foo sorted(Comp*) const; // ok: neither version is reference qualified
+};
+```

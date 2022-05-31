@@ -42,6 +42,11 @@ public:
     void remFolder(Folder *folder) {
         folders.erase(folder);
     }
+    void move_Folders(Message *m);
+    // move constructor
+    Message(Message &&m);
+    // move assignment
+    Message& operator=(Message &&rhs);
 private:
     std::string contents; // actual message text
     std::set<Folder*> folders; // Folders that have this Message
@@ -140,6 +145,35 @@ Message& Message::operator=(const Message &rhs)
     return *this;
 }
 
+// move the Folder pointers from m to this Message
+void Message::move_Folders(Message *m)
+{
+    folders = std::move(m->folders); // uses set move assignment
+    for (auto f : folders) { // for each Folder
+        f->remMsg(m); // remove the old Message from the Folder
+        f->addMsg(this); // add this Message to that Folder
+    }
+    m->folders.clear(); // ensure that destroying m is harmless
+}
+
+Message::Message(Message &&m):
+    contents(std::move(m.contents))
+{
+    cout << "Message::Message(Message &&m)" << endl;
+    move_Folders(&m); // moves folders and updates the Folder pointers
+}
+
+Message& Message::operator=(Message &&rhs)
+{
+    cout << "Message& Message::operator=(Message &&rhs)" << endl;
+    if (this != &rhs) { // direct check for self-assignment
+        remove_from_Folders();
+        contents = std::move(rhs.contents); // move assignment
+        move_Folders(&rhs); // reset the Folders to point to this Message
+    }
+    return *this;
+}
+
 void swap(Message &lhs, Message &rhs)
 {
     using std::swap; // not strictly needed in this case, but good habit
@@ -162,5 +196,8 @@ int main() {
     Message msg("abc");
     Folder fld;
     msg.save(fld);
+    Message msg1 = std::move(msg);
+    Message msg2;
+    msg2 = std::move(msg1);
     return 0;
 }
