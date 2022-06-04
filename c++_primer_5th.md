@@ -10,6 +10,8 @@
 
 ## [重载运算](cpp_primer_5th/overload.md)
 
+## [面向对象程序设计](cpp_primer_5th/oop.md)
+
 ## [模板（1）](cpp_primer_5th/template1.md)
 
 ## [模板（2）](cpp_primer_5th/template2.md)
