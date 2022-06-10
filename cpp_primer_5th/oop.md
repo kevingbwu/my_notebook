@@ -202,10 +202,111 @@ item = bulk; // calls Quote::operator=(const Quote&)
 
 ## 虚函数
 
+运行时才能知道到底调用了哪个版本的虚函数，所以所有虚函数都必须有定义
+
+#### 对虚函数的调用可能在运行时才被解析
+
+动态绑定只有当通过引用或指针调用虚函数时才会发生
+
+引用或指针的静态类型与动态类型不同是C++支持多态性的根本所在
+
+#### 派生类中的虚函数
+
+一旦某个函数被声明为虚函数，则在所有派生类中它都是虚函数
+
+#### final和override
+
+> C++11：override标记派生类中的虚函数
+
+```c++
+struct B {
+    virtual void f1(int) const;
+    virtual void f2();
+    void f3();
+};
+
+struct D1 : B {
+    void f1(int) const override; // ok: f1 matches f1 in the base
+    void f2(int) override; // error: B has no f2(int) function
+    void f3() override; // error: f3 not virtual
+    void f4() override; // error: B doesn't have a function named f4
+};
+```
+
+final：如果已经定义为final，则之后任何尝试覆盖该函数的操作都将引发错误
+
+```c++
+struct D2 : B {
+    // inherits f2() and f3() from B and overrides f1(int)
+    void f1(int) const final; // subsequent classes can't override f1(int)
+};
+struct D3 : D2 {
+    void f2(); // ok: overrides f2 inherited from the indirect base, B
+    void f1(int) const; // error: D2 declared f2 as final
+};
+```
+
+#### 虚函数与默认实参
+
+默认实参值由静态类型决定。如果使用基类的指针或引用调用函数，则使用基类中定义的默认实参
+
+#### 回避虚函数机制
+
+强制执行虚函数的某个特定版本
+
+```c++
+// calls the version from the base class regardless of the dynamic type of baseP
+double undiscounted = baseP->Quote::net_price(42);
+```
+
 ## 抽象基类
+
+#### 纯虚函数
+
+纯虚函数无须定义
+
+```c++
+// class to hold the discount rate and quantity
+// derived classes will implement pricing strategies using these data
+class Disc_quote : public Quote {
+public:
+    Disc_quote() = default;
+    Disc_quote(const std::string& book, double price, std::size_t qty, double disc):
+        Quote(book, price), quantity(qty), discount(disc) { }
+    double net_price(std::size_t) const = 0;
+protected:
+    std::size_t quantity = 0; // purchase size for the discount to apply
+    double discount = 0.0; // fractional discount to apply
+};
+```
+
+#### 含有纯虚函数的类或者未经覆盖直接继承纯虚函数的类是抽象基类
+
+抽象基类负责定义接口，不能直接创建一个抽象基类的对象
+
+```c++
+// Disc_quote declares pure virtual functions, which Bulk_quote will override
+Disc_quote discounted; // error: can't define a Disc_quote object
+Bulk_quote bulk; // ok: Bulk_quote has no pure virtual functions
+```
+
+#### 派生类的构造函数只初始化它的直接基类
+
+```c++
+// the discount kicks in when a specified number of copies of the same book are sold
+// the discount is expressed as a fraction to use to reduce the normal price
+class Bulk_quote : public Disc_quote {
+public:
+    Bulk_quote() = default;
+    Bulk_quote(const std::string& book, double price, std::size_t qty, double disc):
+        Disc_quote(book, price, qty, disc) { }
+    // overrides the base version to implement the bulk purchase discount policy
+    double net_price(std::size_t) const override;
+};
+```
 
 ## 访问控制与继承
 
 ## 继承中的类作用域
 
-## 容器与继承
+## 构造函数与
