@@ -307,6 +307,90 @@ public:
 
 ## 访问控制与继承
 
+每个类分别控制自己的成员初始化过程，还分别控制着其成员对于派生类来说是否可访问
+
+### 受保护的成员
+
+一个类使用protected关键字声明那些它希望与派生类分享但是不想被其他公共访问使用的成员
+* 受保护的成员对于类的用户来说不可访问
+* 受保护的成员对于派生类的成员和友元来说是可访问的
+* 派生类的成员或友元只能通过派生类对象来访问基类的受保护成员
+
+```c++
+class Base {
+protected:
+    int prot_mem; // protected member
+};
+
+class Sneaky : public Base {
+    friend void clobber(Sneaky&); // can access Sneaky::prot_mem
+    friend void clobber(Base&); // can't access Base::prot_mem
+    int j; // j is private by default
+};
+
+// ok: clobber can access the private and protected members in Sneaky objects
+void clobber(Sneaky &s) { s.j = s.prot_mem = 0; }
+// error: clobber can't access the protected members in Base
+void clobber(Base &b) { b.prot_mem = 0; }
+```
+
+### 公有、私有和受保护继承
+
+某个类对其继承而来的成员的访问权限受到两个因素的影响：
+* 基类中该成员的访问说明符
+* 派生类的派生列表中的访问说明符
+
+```c++
+class Base {
+public:
+    void pub_mem(); // public member
+protected:
+    int prot_mem; // protected member
+private:
+    char priv_mem; // private member
+};
+
+struct Pub_Derv : public Base {
+    // ok: derived classes can access protected members
+    int f() { return prot_mem; }
+    // error: private members are inaccessible to derived classes
+    char g() { return priv_mem; }
+};
+
+struct Priv_Derv : private Base {
+    // private derivation doesn't affect access in the derived class
+    int f1() const { return prot_mem; }
+};
+
+Pub_Derv d1; // members inherited from Base are public
+Priv_Derv d2; // members inherited from Base are private
+d1.pub_mem(); // ok: pub_mem is public in the derived class
+d2.pub_mem(); // error: pub_mem is private in the derived class
+```
+
+派生访问说明符对于**派生类的成员及友元**能否访问其**直接基类**的成员没什么影响。
+
+对基类成员的访问权限只与**基类中的访问说明**符有关。
+
+派生访问说明符的目的是控制派生类用户（包括派生类的派生类在内）对于基类成员的访问权限：
+* 继承是共有的，则成员将遵循其原有的访问说明符
+* 继承是私有的，则成员是私有的
+* 继承是受保护的，则所有公有成员在新定义的类中都是受保护的
+
+```c++
+struct Derived_from_Public : public Pub_Derv {
+    // ok: Base::prot_mem remains protected in Pub_Derv
+    int use_base() { return prot_mem; }
+};
+struct Derived_from_Private : public Priv_Derv {
+    // error: Base::prot_mem is private in Priv_Derv
+    int use_base() { return prot_mem; }
+};
+```
+
 ## 继承中的类作用域
 
-## 构造函数与
+## 构造函数与拷贝控制
+
+## 容器与继承
+
