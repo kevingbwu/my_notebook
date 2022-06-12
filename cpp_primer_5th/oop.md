@@ -388,7 +388,223 @@ struct Derived_from_Private : public Priv_Derv {
 };
 ```
 
+### 派生类向基类的转换
+
+假定D继承自B：
+* 只有当D公有地继承B时，用户代码才能使用派生类向基类的转换；如果D继承B的方式是受保护的或私有的，则**用户代码不能使用该转换**
+* 不论D以什么方式继承B，D的成员函数和友元都能使用派生类向基类的转换；派生类向其直接基类的类型转换对于派生类的成员和友元来说永远是可访问的
+* 如果D继承B的方式是公有的或受保护的，则D的派生类的成员和友元可以使用D向B的类型转换
+
+**对于代码中的某个节点来说，如果基类的公有成员是可访问的，则派生类向基类的类型转换也是可访问的**
+
+```c++
+class B {
+public:
+    int i;
+};
+
+class D1 : public B {
+public:
+    int j;
+};
+
+class D2 : protected B {
+public:
+    int j;
+};
+
+class D3 : private B {
+public:
+    int j;
+};
+
+B b;
+B *pb = &b;
+
+D1 d1;
+pb = &d1;
+B &rb = d1;
+
+D2 d2;
+pb = &d2;   // error
+B &rb = d1; // error
+
+D3 d3;
+pb = &d3;   // error
+B &rb = d3; // error
+```
+
+### 友元与继承
+
+友元关系不能传递，也不能继承
+
+```c++
+class Base {
+    // added friend declaration; other members as before
+    friend class Pal; // Pal has no access to classes derived from Base
+};
+
+class Pal {
+public:
+    int f(Base b) { return b.prot_mem; } // ok: Pal is a friend of Base
+    int f2(Sneaky s) { return s.j; } // error: Pal not friend of Sneaky
+    // access to a base class is controlled by the base class, even inside a derived object
+    int f3(Sneaky s) { return s.prot_mem; } // ok: Pal is a friend
+};
+
+// D2 has no access to protected or private members in Base
+class D2 : public Pal {
+public:
+    int mem(Base b)
+    { return b.prot_mem; } // error: friendship doesn't inherit
+};
+```
+
+Pal是Base的友元，所以Pal能够访问Base对象的成员，这种可访问性包括了Base对象内嵌在其派生类对象中的情况
+
+### 改变个别成员的可访问性
+
+通过使用using声明
+
+```c++
+class B {
+public:
+    std::size_t size() const { return n; }
+protected:
+    std::size_t n;
+};
+
+class Derived : private Base { // note: private inheritance
+public:
+    // maintain access levels for members related to the size of the object
+    using Base::size;
+protected:
+    using Base::n;
+};
+```
+
+### 继承的默认保护级别
+
+默认情况下，使用class定义的派生类是私有继承的，使用struct定义的派生类是公有继承的
+
 ## 继承中的类作用域
+
+当存在继承关系时，派生类的作用域嵌套在基类的作用域之内，尽管派生类和基类的定义是相互分离开的
+
+### 在编译时进行名字查找
+
+一个对象、引用或指针的静态类型决定了该对象的哪些成员是可见的
+
+```c++
+class Disc_quote : public Quote {
+public:
+    std::pair<size_t, double> discount_policy() const
+    { return {quantity, discount}; }
+    // other members as before
+};
+
+Bulk_quote bulk;
+Bulk_quote *bulkP = &bulk; // static and dynamic types are the same
+Quote *itemP = &bulk; // static and dynamic types differ
+bulkP->discount_policy(); // ok: bulkP has type Bulk_quote*
+itemP->discount_policy(); // error: itemP has type Quote*
+```
+
+### 名字冲突与继承
+
+内层作用域的名字将隐藏外层作用域的名字，派生类的成员将隐藏同名的基类成员
+
+```c++
+struct Base {
+    Base(): mem(0) { }
+protected:
+    int mem;
+};
+struct Derived : Base {
+    Derived(int i): mem(i) { } // initializes Derived::mem to i
+    // Base::mem is default initialized
+    int get_mem() { return mem; } // returns Derived::mem
+protected:
+    int mem; // hides mem in the base
+};
+```
+
+### 通过作用域运算符来使用隐藏的成员
+
+```c++
+struct Derived : Base {
+    int get_base_mem() { return Base::mem; }
+    // ...
+};
+```
+
+### 名字查找先于类型检查
+
+声明在内层作用域的函数并不会重载声明在外层作用域的函数
+
+```c++
+struct Base {
+    int memfcn();
+};
+struct Derived : Base {
+    int memfcn(int); // hides memfcn in the base
+};
+
+Derived d; Base b;
+b.memfcn(); // calls Base::memfcn
+d.memfcn(10); // calls Derived::memfcn
+d.memfcn(); // error: memfcn with no arguments is hidden
+d.Base::memfcn(); // ok: calls Base::memfcn
+```
+
+### 虚函数与作用域
+
+如果基类与派生类的虚函数接受的实参不同，则无法通过基类的引用或指针调用派生类的虚函数
+
+```c++
+class Base {
+public:
+    virtual int fcn();
+};
+
+class D1 : public Base {
+public:
+    // hides fcn in the base; this fcn is not virtual
+    // D1 inherits the definition of Base::fcn()
+    int fcn(int); // parameter list differs from fcn in Base
+    virtual void f2(); // new virtual function that does not exist in Base
+};
+class D2 : public D1 {
+public:
+    int fcn(int); // nonvirtual function hides D1::fcn(int)
+    int fcn(); // overrides virtual fcn from Base
+    void f2(); // overrides virtual f2 from D1
+};
+```
+
+### 通过基类调用隐藏的虚函数
+
+```c++
+Base bobj; D1 d1obj; D2 d2obj;
+Base *bp1 = &bobj, *bp2 = &d1obj, *bp3 = &d2obj;
+bp1->fcn(); // virtual call, will call Base::fcn at run time
+bp2->fcn(); // virtual call, will call Base::fcn at run time
+bp3->fcn(); // virtual call, will call D2::fcn at run time
+D1 *d1p = &d1obj; D2 *d2p = &d2obj;
+bp2->f2(); // error: Base has no member named f2
+d1p->f2(); // virtual call, will call D1::f2() at run time
+d2p->f2(); // virtual call, will call D2::f2() at run time
+Base *p1 = &d2obj; D1 *p2 = &d2obj; D2 *p3 = &d2obj;
+p1->fcn(42); // error: Base has no version of fcn that takes an int
+p2->fcn(42); // statically bound, calls D1::fcn(int)
+p3->fcn(42); // statically bound, calls D2::fcn(int)
+```
+
+### 覆盖重载的函数
+
+如果派生类希望所有的重载版本对于它来说都是可见的，那么它就需要覆盖掉所有版本，或者一个也不覆盖
+
+using声明语句指定一个名字而不指定形参列表，所以一条基类成员函数的using声明语句可以把该函数的所有重载实例添加到派生类作用域中，此时只需定义其特有的函数就可以了
 
 ## 构造函数与拷贝控制
 
