@@ -608,5 +608,122 @@ using声明语句指定一个名字而不指定形参列表，所以一条基类
 
 ## 构造函数与拷贝控制
 
+### 虚析构函数
+
+通过在基类中将析构函数定义成虚函数以确保执行正确的析构函数版本
+
+```c++
+class Quote {
+public:
+    // virtual destructor needed if a base pointer pointing to a derived object is deleted
+    virtual ~Quote() = default; // dynamic binding for the destructor
+};
+
+Quote *itemP = new Quote; // same static and dynamic type
+delete itemP; // destructor for Quote called
+itemP = new Bulk_quote; // static and dynamic types differ
+delete itemP; // destructor for Bulk_quote called
+```
+
+如果基类的析构函数不是虚函数，则delete一个指向派生类对象的基类指针将产生未定义的行为
+
+一个基类几乎总是需要虚析构函数；如果一个类定义了析构函数，编译器不会为这个类合成移动操作
+
+### 合成拷贝控制与继承
+
+合成的成员负责使用直接基类中对应的操作对一个对象的直接基类部分进行初始化、赋值或销毁操作
+
+```c++
+class B {
+public:
+    B();
+    B(const B&) = delete;
+    // other members, not including a move constructor
+};
+
+class D : public B {
+    // no constructors
+};
+
+D d; // ok: D's synthesized default constructor uses B's default constructor
+D d2(d); // error: D's synthesized copy constructor is deleted
+D d3(std::move(d)); // error: implicitly uses D's deleted copy constructor
+```
+
+#### 移动操作与继承
+
+```c++
+class Quote {
+public:
+    Quote() = default; // memberwise default initialize
+    Quote(const Quote&) = default; // memberwise copy
+    Quote(Quote&&) = default; // memberwise copy
+    Quote& operator=(const Quote&) = default; // copy assign
+    Quote& operator=(Quote&&) = default; // move assign
+    virtual ~Quote() = default;
+    // other members as before
+};
+```
+
+### 派生类的拷贝控制成员
+
+#### 定义派生类的拷贝或移动构造函数
+
+通常使用对应的基类构造函数初始化对象的基类部分
+
+```c++
+class Base { /* ... */ } ;
+class D: public Base {
+public:
+    // by default, the base class default constructor initializes the base part of an object
+    // to use the copy or move constructor, we must explicitly call that
+    // constructor in the constructor initializer list
+    D(const D& d): Base(d) // copy the base members
+    /* initializers for members of D */ { /* ... */ }
+    D(D&& d): Base(std::move(d)) // move the base members
+    /* initializers for members of D */ { /* ... */ }
+};
+```
+
+#### 派生类赋值运算符
+
+```c++
+// Base::operator=(const Base&) is not invoked automatically
+D &D::operator=(const D &rhs)
+{
+    Base::operator=(rhs); // assigns the base part
+    // assign the members in the derived class, as usual,
+    // handling self-assignment and freeing existing resources as appropriate
+    return *this;
+}
+```
+
+#### 派生类析构函数
+
+派生类析构函数只负责销毁派生类自己分配的资源
+
+#### 在构造函数和析构函数中调用虚函数
+
+如果构造函数或析构函数调用了某个虚函数，则应该执行与构造函数或析构函数所属类型相对应的虚函数版本
+
+### 继承的构造函数
+
+一个类只初始化它的直接基类，也只继承其直接基类的构造函数。类不能继承默认、拷贝和移动构造函数
+
+对于基类的每个构造函数，编译器都生成一个与之对应的派生类构造函数
+
+```c++
+class Bulk_quote : public Disc_quote {
+public:
+    using Disc_quote::Disc_quote; // inherit Disc_quote's constructors
+    double net_price(std::size_t) const;
+};
+
+// 等价于
+Bulk_quote(const std::string& book, double price,
+std::size_t qty, double disc):
+    Disc_quote(book, price, qty, disc) { }
+```
+
 ## 容器与继承
 
