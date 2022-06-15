@@ -727,3 +727,25 @@ std::size_t qty, double disc):
 
 ## 容器与继承
 
+```c++
+vector<Quote> basket;
+basket.push_back(Quote("0-201-82470-1", 50));
+// ok, but copies only the Quote part of the object into basket
+basket.push_back(Bulk_quote("0-201-54848-8", 50, 10, .25));
+// calls version defined by Quote, prints 750, i.e., 15 * $50
+cout << basket.back().net_price(15) << endl;
+```
+
+### 在容器中放置智能指针而非对象
+
+希望在容器中存放具有继承关系的对象时，通常存放的是基类的指针或智能指针
+
+```c++
+vector<shared_ptr<Quote>> basket;
+basket.push_back(make_shared<Quote>("0-201-82470-1", 50));
+basket.push_back(make_shared<Bulk_quote>("0-201-54848-8", 50, 10, .25));
+// calls the version defined by Bulk_quote; prints 562.5, i.e., 15 * $50 less the discount
+cout << basket.back()->net_price(15) << endl;
+```
+
+[编写Basket类](code/basket.cpp)
