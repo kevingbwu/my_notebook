@@ -749,3 +749,105 @@ cout << basket.back()->net_price(15) << endl;
 ```
 
 [编写Basket类](code/basket.cpp)
+
+### 文本查询程序
+
+## 多重继承与虚继承
+
+### 多重继承
+
+```c++
+class Bear : public ZooAnimal { /* ... */ };
+class Panda : public Bear, public Endangered { /* ... */ };
+```
+
+#### 多重继承的派生类从每个基类中继承状态
+
+#### 派生类构造函数初始化所有基类
+
+基类的构造顺序与派生列表中基类出现的顺序保持一致
+
+```c++
+// explicitly initialize both base classes
+Panda::Panda(std::string name, bool onExhibit)
+    : Bear(name, onExhibit, "Panda"), Endangered(Endangered::critical) { }
+// implicitly uses the Bear default constructor to initialize the Bear subobject
+Panda::Panda() : Endangered(Endangered::critical) { }
+```
+
+#### 继承的构造函数与多重继承
+
+> C++11，允许派生类从它的一个或几个基类中继承构造函数；但是如果从多个基类中继承了相同的构造函数，则程序将产生错误
+
+```c++
+struct Base1 {
+    Base1() = default;
+    Base1(const std::string&);
+    Base1(std::shared_ptr<int>);
+};
+
+struct Base2 {
+    Base2() = default;
+    Base2(const std::string&);
+    Base2(int);
+};
+
+// error: D1 attempts to inherit D1::D1 (const string&) from both base classes
+struct D1: public Base1, public Base2 {
+    using Base1::Base1; // inherit constructors from Base1
+    using Base2::Base2; // inherit constructors from Base2
+};
+
+struct D2: public Base1, public Base2 {
+    using Base1::Base1; // inherit constructors from Base1
+    using Base2::Base2; // inherit constructors from Base2
+    // D2 must define its own constructor that takes a string
+    D2(const string &s): Base1(s), Base2(s) { }
+    D2() = default; // needed once D2 defines its own constructor
+};
+```
+
+#### 析构函数与多重继承
+
+析构函数的调用顺序正好与构造函数相反
+
+#### 多重继承的派生类的拷贝与移动操作
+
+### 类型转换与多个基类
+
+```c++
+// operations that take references to base classes of type Panda
+void print(const Bear&);
+void highlight(const Endangered&);
+ostream& operator<<(ostream&, const ZooAnimal&);
+Panda ying_yang("ying_yang");
+print(ying_yang); // passes Panda to a reference to Bear
+highlight(ying_yang); // passes Panda to a reference to Endangered
+cout << ying_yang << endl; // passes Panda to a reference to ZooAnimal
+
+// 编译器不会在派生类向基类的几种转换中进行比较和选择，因为转换到任意一种基类都一样好
+void print(const Bear&);
+void print(const Endangered&);
+Panda ying_yang("ying_yang");
+print(ying_yang); // error: ambiguous
+```
+
+#### 基于指针类型或引用类型的查找
+
+对象、指针或引用的静态类型决定了能够使用哪些成员
+
+### 多重继承下的类作用域
+
+派生类的作用域嵌套在直接基类和间接基类的作用域中，查找过程沿着继承体系自底向上进行。在多重继承的情况下，查找过程在所有直接基类中同时进行，如果名字在多个基类中都被找到，则对改名字的使用具有二义性。从几个基类中分别继承相同名字的成员是完全合法的，只不过在使用这个名字时必须明确指出它的版本
+
+```c++
+// both ZooAnimal and Endangered define a member named max_weight
+double d = ying_yang.max_weight();  // error
+
+// 避免二义性，最好在派生类中为该函数定义一个新版本
+double Panda::max_weight() const
+{
+    return std::max(ZooAnimal::max_weight(), Endangered::max_weight());
+}
+```
+
