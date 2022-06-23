@@ -851,3 +851,75 @@ double Panda::max_weight() const
 }
 ```
 
+### 虚继承
+
+令某个类做出声明，承诺愿意共享它的基类，共享的基类子对象称为虚基类。不论虚基类在继承体系中出现了多少次，在派生类中都只包含唯一一个共享的虚基类子对象
+
+> 必须在虚派生的真实需求出现前就已经完成虚派生的操作
+
+#### 使用虚基类
+
+```c++
+// the order of the keywords public and virtual is not significant
+class Raccoon : public virtual ZooAnimal { /* ... */ };
+class Bear : virtual public ZooAnimal { /* ... */ };
+
+// Panda中只有一个ZooAnimal基类部分
+class Panda : public Bear, public Raccoon, public Endangered { };
+```
+
+#### 支持向基类的常规类型转换
+
+```c++
+void dance(const Bear&);
+void rummage(const Raccoon&);
+ostream& operator<<(ostream&, const ZooAnimal&);
+Panda ying_yang;
+dance(ying_yang); // ok: passes Panda object as a Bear
+rummage(ying_yang); // ok: passes Panda object as a Raccoon
+cout << ying_yang; // ok: passes Panda object as a ZooAnimal
+```
+
+#### 虚基类成员的可见性
+
+#### 构造函数与虚继承
+
+虚基类是由最底层的派生类初始化的。如果以普通规则处理初始化任务，虚基类将会在多条继承路径上被重复初始化
+
+```c++
+Bear::Bear(std::string name, bool onExhibit) : 
+    ZooAnimal(name, onExhibit, "Bear") { }
+Raccoon::Raccoon(std::string name, bool onExhibit) : 
+    ZooAnimal(name, onExhibit, "Raccoon") { }
+
+Panda::Panda(std::string name, bool onExhibit) : 
+    ZooAnimal(name, onExhibit, "Panda"),
+    Bear(name, onExhibit),
+    Raccoon(name, onExhibit),
+    Endangered(Endangered::critical),
+    sleeping flag(false) { }
+```
+
+#### 虚继承的对象的构造方式
+
+首先初始化该对象的虚基类子对象部分，然后按照直接基类在派生列表中出现的次序依次对其进行初始化
+
+#### 构造函数与析构函数的次序
+
+```c++
+class Character { /* ... */ };
+class BookCharacter : public Character { /* ... */ };
+class ToyAnimal { /* ... */ };
+class TeddyBear : public BookCharacter, public Bear, public virtual ToyAnimal
+{ /* ... */ };
+
+// 构造顺序
+ZooAnimal(); // Bear's virtual base class
+ToyAnimal(); // direct virtual base class
+Character(); // indirect base class of first nonvirtual base class
+BookCharacter(); // first direct nonvirtual base class
+Bear(); // second direct nonvirtual base class
+TeddyBear(); // most derived class
+
+// 析构顺序相反
+```
