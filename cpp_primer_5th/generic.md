@@ -37,7 +37,7 @@ auto result = find(ia + 1, ia + 4, val);
 
 ## 使用泛型算法
 
-是否读取元素、改变元素、重拍元素顺序
+是否读取元素、改变元素、重排元素顺序
 
 ### 只读算法
 
@@ -372,7 +372,7 @@ bool check_size(const string &s, string::size_type sz)
 
 `auto newCallable = bind(callable, arg_list);`
 
-_n：占位符，标识newCallable的参数，占了局传递给newCallable的参数的位置，位于命名空间`std::placeholders`
+_n：占位符，标识newCallable的参数，占据了传递给newCallable的参数的位置，位于命名空间`std::placeholders`
 
 ```c++
 // check6 is a callable object that takes one argument of type string
