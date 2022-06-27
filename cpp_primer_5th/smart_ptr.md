@@ -112,7 +112,7 @@ shared_ptr<Foo> use_factory(T arg)
 
 * 程序不知道自己需要使用多少对象，例如容器
 * 程序不知道所需对象的准确类型
-* 程序需要载多个对象间共享数据
+* 程序需要在多个对象间共享数据
 
 分配的资源与对应对象生存期一致。例如vector拥有自己的元素
 
@@ -346,8 +346,7 @@ p3 = p2; // error: no assign for unique_ptr
 
 | 操作 <div style="width:200px"> | 解释 |
 | --- | --- |
-| `unique_ptr<T> u1` | 空unique_ptr，可以指向类型为T的对象。u1会使用delete释放它的指针 |
-| `unique_ptr<T, D> u2` | u2会使用一个类型为D的可调用对象释放它的指针 |
+| `unique_ptr<T> u1` <br> `unique_ptr<T, D> u2` | 空unique_ptr，可以指向类型为T的对象。u1会使用delete释放它的指针，u2会使用一个类型为D的可调用对象释放它的指针 |
 | `unique_ptr<T, D> u(d)` | 空unique_ptr，可以指向类型为T的对象。用类型为D的对象d来代替delete |
 | `u = nullptr` | 释放u指向的对象，将u置为空 |
 | `u.release()` | u释放对指针的控制权，返回指针，并将u置为空 |
@@ -556,7 +555,7 @@ delete [] p; // brackets are necessary because we allocated an array
 ```c++
 // up points to an array of ten uninitialized ints
 unique_ptr<int[]> up(new int[10]);
-up.release(); // automatically uses delete[] to destroy its pointer
+up.reset(); // automatically uses delete[] to destroy its pointer
 ```
 
 **指向数组的unique_ptr**
