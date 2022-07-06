@@ -17,3 +17,5 @@
 ## [模板（2）](cpp_primer_5th/template2.md)
 
 ## [模板（3）](cpp_primer_5th/template3.md)
+
+## [其他](cpp_primer_5th/other.md)
