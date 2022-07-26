@@ -82,7 +82,7 @@ Edsger Dijkstra, a pioneer of concurrent programming, proposed a classic solutio
 A semaphore, s, is a global variable with a nonnegative integer value that can only be manipulated by two special operations, called P and V:
 
 * P(s): If s is nonzero, then P decrements s and returns immediately. If s is zero, then suspend the thread until s becomes nonzero and the thread is restarted by a V operation. After restarting, the P operation decrements s and returns control to the caller.
-* V (s): The V operation increments s by 1. If there are any threads blocked at a P operation waiting for s to become nonzero, then the V operation restarts exactly one of these threads, which then completes its P operation by decrementing s.
+* V(s): The V operation increments s by 1. If there are any threads blocked at a P operation waiting for s to become nonzero, then the V operation restarts exactly one of these threads, which then completes its P operation by decrementing s.
 
 The names P and V come from the Dutch words proberen (to test) and verhogen (to increment).
 
