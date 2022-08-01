@@ -87,3 +87,40 @@ A semaphore, s, is a global variable with a nonnegative integer value that can o
 The names P and V come from the Dutch words proberen (to test) and verhogen (to increment).
 
 A semaphore that is used in this way to protect shared variables is called a **binary semaphore** because its value is always 0 or 1. Binary semaphores whose purpose is to provide mutual exclusion are often called **mutexes**. Performing a P operation on a mutex is called locking the mutex. Similarly, performing the V operation is called unlocking the mutex.
+
+## Using Threads for Parallelism
+
+A sequential program is written as a single logical flow.
+A concurrent program is written as multiple concurrent flows.
+A parallel program is a concurrent program running on multiple processors.
+
+**Synchronization overhead is expensive** and should be avoided if possible. If it cannot be avoided, the overhead should be amortized by as much useful computation as possible.
+
+## Other Concurrency Issues
+
+### Thread Safety
+
+A function is said to be **thread-safe if and only if it will always produce correct results when called repeatedly from multiple concurrent threads**. If a function is not thread-safe, then we say it is thread-unsafe.
+
+* Functions that do not protect shared variables
+* Functions that keep state across multiple invocations
+* Functions that return a pointer to a static variable
+* Functions that call thread-unsafe functions
+
+### Reentrancy
+
+There is an important class of thread-safe functions, known as **reentrant functions**, that are characterized by the property that they do not reference any shared data when they are called by multiple threads.
+
+It is important to realize that reentrancy is sometimes a property of both the caller and the callee, and not just the callee alone.
+
+### Using Existing Library Functions in Threaded Programs
+
+### Races
+
+**A race occurs when the correctness of a program depends on one thread reaching point x in its control flow before another thread reaches point y**. Races usually occur because programmers assume that threads will take some particular trajectory through the execution state space, forgetting the golden rule that threaded programs must work correctly for any feasible trajectory.
+
+### Deadlocks
+
+Semaphores introduce the potential for a nasty kind of run-time error, called deadlock, where a collection of threads is blocked, waiting for a condition that will never be true.
+
+Mutex lock ordering rule: Given a total ordering of all mutexes, a program is deadlock-free if each thread acquires its mutexes in order and releases them in reverse order.
