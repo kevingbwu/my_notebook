@@ -8,6 +8,8 @@
 
 * [Inside the C++ Object Model](./inside_the_c++_object_model.md)
 
+* [C++ Concurrency in Action](./c++_concurrency_in_action.md)
+
 ## UNIX/LINUX
 
 * APUE(Advanced Programming in the UNIX Environment 3rd)
