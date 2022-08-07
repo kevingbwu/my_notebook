@@ -134,3 +134,23 @@ void edit_document(std::string const& filename)
     }
 }
 ```
+
+## Passing arguments to a thread function
+
+It’s important to bear in mind that by default, **the arguments are copied into internal storage, where they can be accessed by the newly created thread of execution**, and then passed to the callable object or function as rvalues as if they were temporaries
+
+Both the operation of the **std::thread** constructor and the operation of **std::bind** are defined in terms of the same mechanism.
+
+```c++
+class X
+{
+public:
+    void do_lengthy_work();
+};
+
+X my_x;
+std::thread t(&X::do_lengthy_work, &my_x);  // this指针作为第一个参数
+```
+
+## Transferring ownership of a thread
+
