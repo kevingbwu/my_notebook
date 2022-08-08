@@ -154,7 +154,7 @@ std::thread t(&X::do_lengthy_work, &my_x);  // this指针作为第一个参数
 
 ## Transferring ownership of a thread
 
-std::thread: movable but not copyable
+`std::thread`: movable but not copyable
 
 ```c++
 void some_function();
