@@ -311,3 +311,68 @@ void f()
         entry.join();
 }
 ```
+
+## Choosing the number of threads at runtime
+
+`std::thread::hardware_concurrency()`: This function returns an indication of the number of threads that can truly run concurrently for a given execution of a program.
+
+```c++
+// a simple implementation of a parallel version of std::accumulate
+template<typename Iterator, typename T>
+struct accumulate_block {
+    void operator()(Iterator first, Iterator last, T &result) {
+        result = std::accumulate(first, last, result);
+    }
+};
+
+template<typename Iterator, typename T>
+T parallel_accumulate(Iterator first, Iterator last, T init) {
+    unsigned long const length = std::distance(first, last);
+    if (!length)
+        return init;
+    unsigned long const min_per_thread = 25;
+    unsigned long const max_threads =
+            (length + min_per_thread - 1) / min_per_thread;
+    unsigned long const hardware_threads =
+            std::thread::hardware_concurrency();
+    unsigned long const num_threads =
+            std::min(hardware_threads != 0 ? hardware_threads : 2, max_threads);
+    unsigned long const block_size = length / num_threads;
+    std::vector<T> results(num_threads);
+    std::vector<std::thread> threads(num_threads - 1);
+    Iterator block_start = first;
+    for (unsigned long i = 0; i < (num_threads - 1); ++i) {
+        Iterator block_end = block_start;
+        std::advance(block_end, block_size);
+        threads[i] = std::thread(
+                accumulate_block<Iterator, T>(),
+                block_start, block_end, std::ref(results[i]));
+        block_start = block_end;
+    }
+    accumulate_block<Iterator, T>()(
+            block_start, last, results[num_threads - 1]);
+    for (auto &entry: threads)
+        entry.join();
+    return std::accumulate(results.begin(), results.end(), init);
+}
+```
+
+## Identifying threads
+
+`std::thread::id` type
+
+* the identifier for a thread can be obtained from its associated `std::thread` object by calling the `get_id()` member function
+
+* the identifier for the current thread can be obtained by calling `std::this_thread::get_id()`, which is also defined in the <thread> header
+
+```c++
+std::thread::id master_thread;
+void some_core_part_of_algorithm()
+{
+    if(std::this_thread::get_id() == master_thread)
+    {
+        do_master_thread_work();
+    }
+    do_common_work();
+}
+```
