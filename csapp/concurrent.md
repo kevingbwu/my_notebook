@@ -65,7 +65,7 @@ Each thread has its own separate **thread context**, which includes a thread ID,
 
 * Global variables: At run time, the read/write area of virtual memory contains exactly one instance of each global variable that can be referenced by any thread.
 * Local automatic variables: At run time, each thread’s stack contains its own instances of any local automatic variables.
-* Local static variables: As with global variables, the read/write area of virtual memory contains exactly one instance of each local static Section 12.5 Synchronizing Threads with Semaphores 1031 variable declared in a program.
+* Local static variables: As with global variables, the read/write area of virtual memory contains exactly one instance of each local static variable declared in a program.
 
 ### Shared Variables
 
