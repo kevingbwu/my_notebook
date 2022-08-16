@@ -1,5 +1,9 @@
 # Managing threads
 
+* Starting threads, and various ways of specifying code to run on a new thread
+* Waiting for a thread to finish versus leaving it to run
+* Uniquely identifying threads
+
 ## Basic thread management
 
 ### Launching a thread
