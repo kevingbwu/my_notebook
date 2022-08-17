@@ -173,7 +173,7 @@ class threadsafe_stack
 {
 private:
     std::stack<T> data;
-mutable std::mutex m;
+    mutable std::mutex m;
 public:
     threadsafe_stack() {}
     threadsafe_stack(const threadsafe_stack& other)
@@ -204,8 +204,8 @@ public:
     }
     bool empty() const
     {
-    std::lock_guard<std::mutex> lock(m);
-    return data.empty();
+        std::lock_guard<std::mutex> lock(m);
+        return data.empty();
     }
 };
 ```
