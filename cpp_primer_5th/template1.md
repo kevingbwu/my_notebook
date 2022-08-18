@@ -20,9 +20,9 @@ int compare(const T &v1, const T &v2) {
 #### 实例化模板参数
 
 ```c++
-// 实例化处 int compare(const int&, const int&)
+// 实例化出 int compare(const int&, const int&)
 cout << compare(1, 0) << endl;
-// 实例化处 int compare(const vector<int>&, const vector<int>&)
+// 实例化出 int compare(const vector<int>&, const vector<int>&)
 vector<int> vec1{1, 2, 3}, vec2{4, 5, 6};
 cout << compare(vec1, vec2) << endl;
 ```
@@ -75,7 +75,7 @@ int compare(const T &v1, const T &v2) {
 
 #### 模板编译
 
-遇到模板定义并不生成代码，只有实例化出末班的一个特定版本时编译器才会生成代码
+遇到模板定义并不生成代码，只有实例化出模板的一个特定版本时编译器才会生成代码
 
 **为了生成一个特例化版本，编译器需要掌握函数模板或类模板成员函数的定义，因此，模板的头文件通常既包含声明也包含定义**
 
@@ -170,7 +170,7 @@ private:
 
 * 定义在类模板内部的成员函数被隐式声明为内联函数
 
-* 定义在类模板外部的成员函数必须以关键字template开，后接类模板参数列表
+* 定义在类模板外部的成员函数必须以关键字`template`开始，后接类模板参数列表
 
 #### 类模板成员函数实例化
 
