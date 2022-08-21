@@ -459,3 +459,151 @@ public:
 ```
 
 ## Alternative facilities for protecting shared data
+
+### Protecting shared data during initialization
+
+```c++
+// Lazy initialization in single-threaded code
+std::shared_ptr<some_resource> resource_ptr;
+void foo()
+{
+    if(!resource_ptr)
+    {
+        resource_ptr.reset(new some_resource);
+    }
+    resource_ptr->do_something();
+}
+
+// Thread-safe lazy initialization using a mutex
+// can cause unnecessary serialization of threads using the resource
+// because each thread must wait on the mutex in order to check
+// whether the resource has already been initialized
+std::shared_ptr<some_resource> resource_ptr;
+std::mutex resource_mutex;
+void foo()
+{
+    std::unique_lock<std::mutex> lk(resource_mutex);
+    if(!resource_ptr)
+    {
+        resource_ptr.reset(new some_resource);
+    }
+    lk.unlock();
+    resource_ptr->do_something();
+}
+
+// infamous double-checked locking pattern
+// Thread 1 gets part-way through initializing resource_ptr and then gets paused/switched.
+// Thread 2 then comes along, performs the first check, sees that the pointer is not null, 
+// and skips the lock/fully-initialized check.
+// It then uses the partially-initialized object (probably resulting in bad things happening).
+// Thread 1 then comes back and finishes initializing, but it's too late.
+void undefined_behaviour_with_double_checked_locking()
+{
+    if(!resource_ptr)
+    {
+        std::lock_guard<std::mutex> lk(resource_mutex);
+        if(!resource_ptr)
+        {
+            resource_ptr.reset(new some_resource);
+        }
+    }
+    resource_ptr->do_something();
+}
+
+// std::call_once
+// std::once_flag
+std::shared_ptr<some_resource> resource_ptr;
+std::once_flag resource_flag;
+void init_resource()
+{
+    resource_ptr.reset(new some_resource);
+}
+void foo()
+{
+    std::call_once(resource_flag, init_resource);
+    resource_ptr->do_something();
+}
+
+// Thread-safe lazy initialization of a class member using std::call_once
+class X
+{
+private:
+    connection_info connection_details;
+    connection_handle connection;
+    std::once_flag connection_init_flag;
+    void open_connection()
+    {
+        connection = connection_manager.open(connection_details);
+    }
+public:
+    X(connection_info const& connection_details_):
+        connection_details(connection_details_)
+    {}
+    // the initialization is done either by the first call to send_data(), or by the first call to receive_data()
+    void send_data(data_packet const& data)
+    {
+        std::call_once(connection_init_flag,&X::open_connection,this);
+        connection.send_data(data);
+    }
+    data_packet receive_data()
+    {
+        std::call_once(connection_init_flag,&X::open_connection,this);
+        return connection.receive_data();
+    }
+};
+```
+
+* Pre C++11, local variable declared with static has race condition over initialization.
+* In C++11 this problem is solved: the initialization is defined to happen on exactly one thread, and no other threads will proceed until that initialization is complete.
+```c++
+// Multiple threads can then call get_my_class_instance() safely
+// without having to worry about race conditions on the initialization
+class my_class;
+my_class& get_my_class_instance()
+{
+    static my_class instance;
+    return instance;
+}
+```
+
+### Protecting rarely updated data structures
+
+a reader-writer mutex: allows for two different kinds of usage: exclusive access by a single “writer” thread or shared, and concurrent access by multiple “reader” threads.
+
+C++17 provides `std::shared_mutex` and `std::shared_timed_mutex`
+C++14 only features `std::shared_timed_mutex`, and C++11 didn’t provide either.
+
+* For the update operations, `std::lock_guard<std::shared_mutex>` and `std::unique_lock<std::shared_mutex>` can be used for the locking
+* Those threads that don’t need to update the data structure can instead use `std::shared_lock<std::shared_mutex>` to obtain shared access.
+
+```c++
+// Protecting a data structure with std::shared_mutex
+#include <map>
+#include <string>
+#include <mutex>
+#include <shared_mutex>
+class dns_entry;
+class dns_cache
+{
+    std::map<std::string, dns_entry> entries;
+    mutable std::shared_mutex entry_mutex;
+public:
+    dns_entry find_entry(std::string const& domain) const
+    {
+        std::shared_lock<std::shared_mutex> lk(entry_mutex);
+        std::map<std::string, dns_entry>::const_iterator const it = entries.find(domain);
+        return (it == entries.end()) ? dns_entry() : it->second;
+    }
+    void update_or_add_entry(std::string const& domain, dns_entry const& dns_details)
+    {
+        std::lock_guard<std::shared_mutex> lk(entry_mutex);
+        entries[domain] = dns_details;
+    }
+};
+```
+
+### Recursive locking
+
+With std::mutex, it’s an error for a thread to try to lock a mutex it already owns, and attempting to do so will result in undefined behavior
+
+`std::recursive_mutex`: It works like `std::mutex`, except that you can acquire multiple locks on a single instance from the same thread. You must release all your locks before the mutex can be locked by another thread, so if you call lock() three times, you must also call unlock() three times. The correct use of `std::lock_guard<std::recursive_mutex>` and `std::unique_lock<std::recursive_mutex>` will handle this for you.
