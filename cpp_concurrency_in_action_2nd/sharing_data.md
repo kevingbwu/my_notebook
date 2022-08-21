@@ -359,3 +359,103 @@ public:
 thread_local unsigned long
 hierarchical_mutex::this_thread_hierarchy_value(ULONG_MAX);
 ```
+
+### Flexible locking with std::unique_lock
+
+`std::unique_lock` provides a bit more flexibility than `std::lock_guard` by relaxing the invariants; an `std::unique_lock` instance doesn’t always own the mutex that it’s associated with.
+
+`std::unique_lock`:
+* You can pass `std::adopt_lock` as a second argument to the constructor to have the lock object manage the lock on a mutex
+* You can also pass `std::defer_lock` as the second argument to indicate that the mutex should remain unlocked on construction. The lock can then be acquired later by calling `lock()` on the `std::unique_lock` object (not the mutex) or by passing the `std:: unique_lock` object to `std::lock()`.
+
+```c++
+class some_big_object;
+void swap(some_big_object& lhs,some_big_object& rhs);
+
+class X
+{
+private:
+    some_big_object some_detail;
+    std::mutex m;
+public:
+    X(some_big_object const& sd) : some_detail(sd) {}
+    friend void swap(X& lhs, X& rhs)
+    {
+        if(&lhs == &rhs)
+            return;
+        std::unique_lock<std::mutex> lock_a(lhs.m, std::defer_lock);
+        std::unique_lock<std::mutex> lock_b(rhs.m, std::defer_lock);
+        std::lock(lock_a, lock_b);
+        swap(lhs.some_detail, rhs.some_detail);
+    }
+};
+```
+
+Unless you’re going to be transferring lock ownership around or doing something else that requires `std::unique_lock`, you’re still better off using the C++17 variadic `std::scoped_lock` if it’s available to you.
+
+when to use `std::unique_lock`:
+* deferred locking
+* where the ownership of the lock needs to be transferred from one scope to another
+
+### Transferring mutex ownership between scopes
+
+One possible use is to allow a function to lock a mutex and transfer ownership of that lock to the caller, so the caller can then perform additional actions under the protection of the same lock.
+
+```c++
+// get_lock() function locks the mutex and then prepares the data before returning the lock to the caller
+std::unique_lock<std::mutex> get_lock()
+{
+    extern std::mutex some_mutex;
+    std::unique_lock<std::mutex> lk(some_mutex);
+    prepare_data();
+    return lk;
+}
+void process_data()
+{
+    std::unique_lock<std::mutex> lk(get_lock());
+    do_something();
+}
+```
+
+### Locking at an appropriate granularity
+
+`std::unique_lock` works well in this situation, because you can call `unlock()` when the code no longer needs access to the shared data and then call `lock()` again if access is required later in the code.
+
+```c++
+void get_and_process_data()
+{
+    std::unique_lock<std::mutex> my_lock(the_mutex);
+    some_class data_to_process = get_next_data_chunk();
+    my_lock.unlock();   // Don’t need mutex locked across call to process()
+    result_type result = process(data_to_process);
+    my_lock.lock();     // Relock mutex to write result
+    write_result(data_to_process, result);
+}
+```
+
+```c++
+// Locking one mutex at a time in a comparison operator
+class Y
+{
+private:
+    int some_detail;
+    mutable std::mutex m;
+    int get_detail() const
+    {
+        std::lock_guard<std::mutex> lock_a(m);
+        return some_detail;
+    }
+public:
+    Y(int sd) : some_detail(sd) {}
+    friend bool operator==(Y const& lhs, Y const& rhs)
+    {
+        if(&lhs == &rhs)
+            return true;
+        int const lhs_value = lhs.get_detail();
+        int const rhs_value = rhs.get_detail();
+        return lhs_value == rhs_value;
+    }
+};
+```
+
+## Alternative facilities for protecting shared data
