@@ -542,12 +542,12 @@ public:
     // the initialization is done either by the first call to send_data(), or by the first call to receive_data()
     void send_data(data_packet const& data)
     {
-        std::call_once(connection_init_flag,&X::open_connection,this);
+        std::call_once(connection_init_flag, &X::open_connection, this);
         connection.send_data(data);
     }
     data_packet receive_data()
     {
-        std::call_once(connection_init_flag,&X::open_connection,this);
+        std::call_once(connection_init_flag, &X::open_connection, this);
         return connection.receive_data();
     }
 };
