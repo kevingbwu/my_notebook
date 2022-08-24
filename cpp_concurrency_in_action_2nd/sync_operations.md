@@ -266,7 +266,7 @@ public:
 auto f5 = std::async(move_only());
 ```
 
-**By default, it’s up to the implementation whether std::async starts a new thread, or whether the task runs synchronously when the future is waited for.**
+**By default, it’s up to the implementation whether `std::async` starts a new thread, or whether the task runs synchronously when the future is waited for.**
 
 `std::launch::deferred`: indicate that the function call is to be deferred until either `wait()` or `get()` is called on the future
 `std::launch::async`: indicate that the function must be run on its own thread
