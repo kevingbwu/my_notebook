@@ -189,3 +189,103 @@ void data_processing_thread()
 * Several threads are waiting for the same event, and all of them need to respond. The thread preparing the data can call the `notify_all()` member function on the condition variable rather than `notify_one()`. This causes all the threads currently executing wait() to check the condition they’re waiting for.
 
 ## Waiting for one-off events with futures
+
+`future`: If a thread needs to wait for a specific one-off event, it somehow obtains a future representing that event
+
+* `std::future<>`: unique futures, an instance of `std::future` is the one and only instance that refers to its associated event
+* `std::shared_future<>`: shared futures, multiple instances of `std::shared_future` may refer to the same event
+
+the template parameter is the type of the associated data
+
+### Returning values from background tasks
+
+`std::async`: to start an asynchronous task for which you don’t need the result right away. Rather than giving you a `std::thread` object to wait on, `std::async` returns a `std::future` object, which will eventually hold the return value of the function. When you need the value, you just call `get()` on the future, and the thread blocks until the future is ready and then returns the value.
+
+```c++
+// Using std::future to get the return value of an asynchronous task
+#include <future>
+#include <iostream>
+
+int find_the_answer_to_ltuae();
+void do_other_stuff();
+
+int main()
+{
+    // std::async allows you to pass additional arguments to the function by adding extra
+    // arguments to the call, in the same way that std::thread does
+    std::future<int> the_answer = std::async(find_the_answer_to_ltuae);
+    do_other_stuff();
+    std::cout << "The answer is " << the_answer.get() << std::endl;
+}
+```
+
+```c++
+// Passing arguments to a function with std::async
+
+#include <string>
+#include <future>
+
+struct X
+{
+    void foo(int, std::string const&);
+    std::string bar(std::string const&);
+};
+
+X x;
+// Calls p->foo(42,"hello") where p is &x
+auto f1 = std::async(&X::foo, &x, 42, "hello");
+// Calls tmpx.bar("goodbye") where tmpx is a copy of x
+auto f2 = std::async(&X::bar, x, "goodbye");
+
+struct Y
+{
+    double operator()(double);
+};
+
+Y y;
+// Calls tmpy(3.141) where tmpy is move-constructed from Y()
+auto f3 = std::async(Y(), 3.141);
+// Calls y(2.718)
+auto f4 = std::async(std::ref(y), 2.718);
+
+X baz(X&);
+// Calls baz(x)
+std::async(baz, std::ref(x));
+
+class move_only
+{
+public:
+    move_only();
+    move_only(move_only&&);
+    move_only(move_only const&) = delete;
+    move_only& operator=(move_only&&);
+    move_only& operator=(move_only const&) = delete;
+    void operator()();
+};
+// Calls tmp() where tmp is constructed from std::move(move_only())
+auto f5 = std::async(move_only());
+```
+
+**By default, it’s up to the implementation whether std::async starts a new thread, or whether the task runs synchronously when the future is waited for.**
+
+`std::launch::deferred`: indicate that the function call is to be deferred until either `wait()` or `get()` is called on the future
+`std::launch::async`: indicate that the function must be run on its own thread
+`std::launch::deferred | std::launch::async`: indicate that the implementation may choose, this option is the default
+
+```c++
+// If the function call is deferred, it may never run
+
+// Run in new thread
+auto f6 = std::async(std::launch::async, Y(), 1.2);
+// Run in wait() or get()
+auto f7 = std::async(std::launch::deferred, baz, std::ref(x));
+// Implementation chooses
+auto f8 = std::async(std::launch::deferred | std::launch::async, baz, std::ref(x));
+auto f9 = std::async(baz, std::ref(x));
+
+// Invoke deferred function
+f7.wait();
+```
+
+### Associating a task with a future
+
