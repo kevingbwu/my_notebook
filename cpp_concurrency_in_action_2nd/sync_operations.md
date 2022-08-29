@@ -289,3 +289,66 @@ f7.wait();
 
 ### Associating a task with a future
 
+`std::packaged_task<>`: ties a `future` to a function or callable object. When the `std::packaged_task<>` object is invoked, it calls the associated function or callable object and makes the `future` ready, with the return value stored as the associated data.The template parameter for the `std::packaged_task<>` class template is a function signature, the return type of the specified function signature identifies the type of the `std::future<>` returned from the `get_future()` member function, the argument list of the function signature is used to specify the signature of the packaged task’s function call operator.
+
+```c++
+// Partial class definition for a specialization of std::packaged_task<>
+template<>
+class packaged_task<std::string(std::vector<char>*, int)>
+{
+public:
+    template<typename Callable>
+    explicit packaged_task(Callable&& f);
+    std::future<std::string> get_future();
+    void operator()(std::vector<char>*, int);
+};
+```
+
+Wrap a task in a `std::packaged_task` and retrieve the future before passing the `std::packaged_task` object elsewhere to be invoked in due course. When you need the result, you can wait for the future to become ready.
+
+```c++
+// Running code on a GUI thread using std::packaged_task
+
+#include <deque>
+#include <mutex>
+#include <future>
+#include <thread>
+#include <utility>
+
+std::mutex m;
+std::deque<std::packaged_task<void()>> tasks;
+bool gui_shutdown_message_received();
+void get_and_process_gui_message();
+void gui_thread()
+{
+    // loops until a message has been received telling the GUI to shut down
+    while(!gui_shutdown_message_received())
+    {
+        // repeatedly polling for GUI messages to handle
+        get_and_process_gui_message();
+        std::packaged_task<void()> task;
+        {
+            std::lock_guard<std::mutex> lk(m);
+            if(tasks.empty())
+                continue;
+            task = std::move(tasks.front());
+            tasks.pop_front();
+        }
+        task();
+    }
+}
+
+std::thread gui_bg_thread(gui_thread);
+template<typename Func>
+std::future<void> post_task_for_gui_thread(Func f)
+{
+    std::packaged_task<void()> task(f);
+    std::future<void> res = task.get_future();
+    std::lock_guard<std::mutex> lk(m);
+    tasks.push_back(std::move(task));
+    return res;
+}
+```
+
+### Making (std::)promises
+
