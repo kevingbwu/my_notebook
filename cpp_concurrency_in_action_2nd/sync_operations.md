@@ -352,3 +352,37 @@ std::future<void> post_task_for_gui_thread(Func f)
 
 ### Making (std::)promises
 
+`std::promise<T>`: provides a means of setting a value (of type T) that can later be read through an associated `std::future<T>` object. A `std::promise/std::future` pair would provide one possible mechanism for this facility; the waiting thread could block on the future, while the thread providing the data could use the promise half of the pairing to set the associated value and make the future ready. You can obtain the `std::future` object associated with a given `std::promise` by calling the `get_future()` member function, just like with `std::packaged_task`. When the value of the `promise` is set (using the `set_value()` member function), the future becomes ready and can be used to retrieve the stored value.
+
+```c++
+// use a std::promise<bool>/std::future<bool> pair to identify the successful transmission of a block of outgoing data; 
+// the value associated with the future is a simple success/failure flag.
+// for incoming packets, the data associated with the future is the payload of the data packet.
+#include <future>
+void process_connections(connection_set& connections)
+{
+    while(!done(connections))
+    {
+        for(connection_iterator connection = connections.begin(), end=connections.end();
+            connection!=end;
+            ++connection)
+        {
+            if(connection->has_incoming_data())
+            {
+                data_packet data = connection->incoming();
+                std::promise<payload_type>& p = connection->get_promise(data.id);
+                p.set_value(data.payload);
+            }
+            if(connection->has_outgoing_data())
+            {
+                outgoing_packet data = connection->top_of_outgoing_queue();
+                connection->send(data.payload);
+                data.promise.set_value(true);
+            }
+        }
+    }
+}
+```
+
+### Saving an exception for the future
+
