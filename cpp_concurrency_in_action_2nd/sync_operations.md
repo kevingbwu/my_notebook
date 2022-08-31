@@ -386,3 +386,24 @@ void process_connections(connection_set& connections)
 
 ### Saving an exception for the future
 
+* If the function call invoked as part of `std::async` throws an exception, that exception is stored in the future in place of a stored value, the future becomes ready, and a call to `get()` rethrows that stored exception.
+* If you wrap the function in a `std::packaged_task`, when the task is invoked, if the wrapped function throws an exception, that exception is stored in the future in place of the result, ready to be thrown on a call to `get()`.
+* `std::promise` provides the same facility, with an explicit function call. If you wish to store an exception rather than a value, you call the `set_exception()` member function rather than `set_value()`.
+
+```c++
+extern std::promise<double> some_promise;
+try {
+    some_promise.set_value(calculate_value());
+}
+catch(...) {
+    some_promise.set_exception(std::current_exception());
+    // some_promise.set_exception(std::make_exception_ptr(std::logic_error("foo ")));
+}
+```
+
+### Waiting from multiple threads
+
+* `std::future` is only moveable (so ownership can be transferred between instances, but only one instance refers to a particular asynchronous result at a time)
+* `std::shared_future` instances are copyable (so you can have multiple objects referring to the same associated state).
+
+## Waiting with a time limit
