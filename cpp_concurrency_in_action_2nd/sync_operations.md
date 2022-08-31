@@ -407,3 +407,67 @@ catch(...) {
 * `std::shared_future` instances are copyable (so you can have multiple objects referring to the same associated state).
 
 ## Waiting with a time limit
+
+### Clocks
+
+a clock is a class that provides four distinct pieces of information:
+* The time now
+* The type of the value used to represent the times obtained from the clock
+* The tick period of the clock
+* Whether or not the clock ticks at a uniform rate and is therefore considered to be a steady clock
+
+* `std::chrono::system_clock`: wall clock time from the system-wide realtime clock
+* `std::chrono::steady_clock`: monotonic clock that will never be adjusted
+* `std::chrono::high_resolution_clock`: the clock with the shortest tick period available
+
+### Durations
+
+`std::chrono::duration<>` class template: The first template parameter is the type of the representation (such as int, long, or double), and the second is a fraction specifying how many seconds each unit of the duration represents.
+
+```c++
+// a number of minutes stored in a short
+std::chrono::duration<short, std::ratio<60, 1>>
+
+// a count of milliseconds stored in a double
+std::chrono::duration<double, std::ratio<1, 1000>>
+
+// wait for up to 35 milliseconds for a future to be ready:
+std::future<int> f = std::async(some_task);
+if(f.wait_for(std::chrono::milliseconds(35)) == std::future_status::ready)
+    do_something_with(f.get());
+```
+
+### Time points
+
+`std::chrono::time_point<>` class template: The time point for a clock, first template parameter specifies which clock it refers to and second template parameter is the units of measurement (a specialization of `std::chrono::duration<>`). The value of a time point is the length of time (in multiples of the specified duration) since a specific point in time called the epoch of the clock.
+
+```c++
+auto start = std::chrono::high_resolution_clock::now();
+do_something();
+auto stop = std::chrono::high_resolution_clock::now();
+std::cout << "do_something() took "
+          << std::chrono::duration<double, std::chrono::seconds>(stop - start).count()
+          << " seconds" << std::endl;
+```
+
+```c++
+// Waiting for a condition variable with a timeout
+#include <condition_variable>
+#include <mutex>
+#include <chrono>
+
+std::condition_variable cv;
+bool done;
+std::mutex m;
+bool wait_loop()
+{
+    auto const timeout = std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
+    std::unique_lock<std::mutex> lk(m);
+    while(!done)
+    {
+        if(cv.wait_until(lk, timeout) == std::cv_status::timeout)
+            break;
+    }
+    return done;
+}
+```
