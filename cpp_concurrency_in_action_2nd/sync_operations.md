@@ -471,3 +471,9 @@ bool wait_loop()
     return done;
 }
 ```
+
+### Functions that accept timeouts
+
+`std::this_thread::sleep_for()`: the thread goes to sleep for the specified duration
+`std::this_thread::sleep_until()`: the thread goes to sleep until the specified point in time
+
