@@ -416,6 +416,7 @@ a clock is a class that provides four distinct pieces of information:
 * The tick period of the clock
 * Whether or not the clock ticks at a uniform rate and is therefore considered to be a steady clock
 
+clock type
 * `std::chrono::system_clock`: wall clock time from the system-wide realtime clock
 * `std::chrono::steady_clock`: monotonic clock that will never be adjusted
 * `std::chrono::high_resolution_clock`: the clock with the shortest tick period available
@@ -475,6 +476,7 @@ bool wait_loop()
 ### Functions that accept timeouts
 
 `std::this_thread::sleep_for()`: the thread goes to sleep for the specified duration
+
 `std::this_thread::sleep_until()`: the thread goes to sleep until the specified point in time
 
 ## [Using synchronization of operations to simplify code](./sync_operations_simplify_code.md)
