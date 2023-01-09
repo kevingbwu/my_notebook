@@ -40,14 +40,14 @@ struct func
     {
         for(unsigned j = 0; j < 1000000; ++j)
         {
-            do_something(i);
+            do_something(i);  // Potential access to dangling reference
         }
     }
 };
 
 void oops()
 {
-    int some_local_state=0;
+    int some_local_state = 0;
     func my_func(some_local_state);
     std::thread my_thread(my_func);
     my_thread.detach();
@@ -72,7 +72,7 @@ You can call join() **only once** for a given thread; once you’ve called join(
 struct func;
 void f()
 {
-    int some_local_state=0;
+    int some_local_state = 0;
     func my_func(some_local_state);
     std::thread t(my_func);
     try
@@ -141,7 +141,46 @@ void edit_document(std::string const& filename)
 
 ## Passing arguments to a thread function
 
-It’s important to bear in mind that by default, **the arguments are copied into internal storage, where they can be accessed by the newly created thread of execution**, and then passed to the callable object or function as rvalues as if they were temporaries
+It’s important to bear in mind that by default, **the arguments are copied into internal storage, where they can be accessed by the newly created thread of execution**, and then passed to the callable object or function as rvalues as if they were temporaries.
+
+```c++
+void f(int i, std::string const& s);
+// there’s a significant chance that the oops function will exit
+// before the buffer has been converted to a std::string on the new thread
+// thus leading to undefined behavior
+void oops(int some_param)
+{
+    char buffer[1024];
+    sprintf(buffer, "%i", some_param);
+    std::thread t(f, 3, buffer);
+    t.detach();
+}
+
+void f(int i,std::string const& s);
+// avoids dangling pointer
+void not_oops(int some_param)
+{
+    char buffer[1024];
+    sprintf(buffer, "%i", some_param);
+    std::thread t(f, 3, std::string(buffer));
+    t.detach();
+}
+
+void update_data_for_widget(widget_id w, widget_data& data);
+// fail to compile
+// because you can't pass an rvalue to a function that expects a non-const reference.
+void oops_again(widget_id w)
+{
+    widget_data data;
+    std::thread t(update_data_for_widget, w, data);
+    display_status();
+    t.join();
+    process_widget_data(data);
+}
+
+// wrap the arguments that need to be references in std::ref
+std::thread t(update_data_for_widget, w, std::ref(data));
+```
 
 Both the operation of the **std::thread** constructor and the operation of **std::bind** are defined in terms of the same mechanism.
 
