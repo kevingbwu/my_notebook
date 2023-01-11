@@ -16,6 +16,8 @@ If two threads access separate memory locations, there’s no problem: everythin
 
 ### Modification orders
 
+Every object in a C++ program has a modification order composed of all the writes to that object from all threads in the program, starting with the object’s initialization.
+
 ## Atomic operations and types in C++
 
 **An atomic operation is an indivisible operation**. You can’t observe such an operation half-done from any thread in the system; it’s either done or not done.
@@ -42,3 +44,35 @@ atomic operations are divided into three categories:
 * Store operations
 * Load operations
 * Read-modify-write operations
+
+### Operations on std::atomic_flag
+
+```c++
+// Objects of the std::atomic_flag type must be initialized with ATOMIC_FLAG_INIT
+// It's the only atomic type to require such special treatment for initialization
+// but it's also the only type guaranteed to be lock-free.
+std::atomic_flag f = ATOMIC_FLAG_INIT;
+
+// destroy it, clear it, or set it and query the previous value
+// destructor, the clear() member function, and the test_and_set() member function
+```
+
+All operations on an atomic type are defined as atomic, and assignment and copy-construction involve two objects. A single operation on two distinct objects can’t be atomic. In the case of **copyconstruction or copy-assignment**, the value must first be read from one object and then written to the other. These are two separate operations on two separate objects, and the combination can’t be atomic.
+
+```c++
+// Implementation of a spinlock mutex using std::atomic_flag
+class spinlock_mutex
+{
+    std::atomic_flag flag;
+public:
+    spinlock_mutex() : flag(ATOMIC_FLAG_INIT) {}
+    void lock()
+    {
+        while(flag.test_and_set(std::memory_order_acquire));
+    }
+    void unlock()
+    {
+        flag.clear(std::memory_order_release);
+    }
+};
+```
