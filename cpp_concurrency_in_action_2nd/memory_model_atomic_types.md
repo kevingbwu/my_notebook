@@ -76,3 +76,37 @@ public:
     }
 };
 ```
+
+### Operations on std::atomic<bool>
+
+```c++
+// the assignment operators they support return values (
+// of the corresponding non-atomic type) rather than references.
+std::atomic<bool> b(true);
+b = false;
+
+// Unlike most assignment operators,
+// the assignment operators for atomic types do not return a reference to
+// their left-hand arguments. They return a copy of the stored value instead.
+
+std::atomic<bool> b;
+bool x = b.load(std::memory_order_acquire);
+b.store(true);
+x = b.exchange(false, std::memory_order_acq_rel);
+
+// compare-exchange operations
+// compare_exchange_weak()
+// compare_exchange_strong()
+```
+
+### Operations on std::atomic<T*>: pointer arithmetic
+
+```c++
+// pointer arithmetic operations, return the original value
+// fetch_add()
+// fetch_sub()
+```
+
+### Operations on standard atomic integral types
+
+Only division, multiplication, and shift operators are missing. Because atomic integral values are typically used either as counters or as bitmasks.
