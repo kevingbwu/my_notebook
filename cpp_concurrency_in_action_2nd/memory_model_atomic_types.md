@@ -45,7 +45,7 @@ atomic operations are divided into three categories:
 * Load operations
 * Read-modify-write operations
 
-### Operations on std::atomic_flag
+### Operations on `std::atomic_flag`
 
 ```c++
 // Objects of the std::atomic_flag type must be initialized with ATOMIC_FLAG_INIT
@@ -77,7 +77,7 @@ public:
 };
 ```
 
-### Operations on std::atomic<bool>
+### Operations on `std::atomic<bool>`
 
 ```c++
 // the assignment operators they support return values (
@@ -99,7 +99,7 @@ x = b.exchange(false, std::memory_order_acq_rel);
 // compare_exchange_strong()
 ```
 
-### Operations on std::atomic<T*>: pointer arithmetic
+### Operations on `std::atomic<T*>`: pointer arithmetic
 
 ```c++
 // pointer arithmetic operations, return the original value
