@@ -110,3 +110,36 @@ x = b.exchange(false, std::memory_order_acq_rel);
 ### Operations on standard atomic integral types
 
 Only division, multiplication, and shift operators are missing. Because atomic integral values are typically used either as counters or as bitmasks.
+
+### The `std::atomic<>` primary class template
+
+The presence of the primary template allows a user to create an atomic variant of a user-defined type, in addition to the standard atomic types.
+
+In order to use `std::atomic<UDT>` for some user-defined type UDT,, this type must have a **trivial copyassignment operator**. This permits the compiler to use `memcpy()` or an equivalent operation for assignment operations.
+
+* The type must not have any virtual functions or virtual base classes and must use the compiler-generated copy-assignment operator.
+* Every base class and non-static data member of a user-defined type must also have a trivial copy-assignment operator.
+
+![The operations available on atomic types](image/the_operations_available_on_atomic_types.png)
+
+### Free functions for atomic operations
+
+The nonmember functions are named after the corresponding member functions but with an atomic_prefix (for example, `std::atomic_load()`). Whereas the atomic object being referenced by the member functions is implicit, all the free functions take a pointer to the atomic object as the first parameter.
+
+The C++ Standard Library also provides free functions for accessing instances of `std::shared_ptr<>` in an atomic fashion
+
+```c++
+std::shared_ptr<my_data> p;
+
+void process_global_data()
+{
+    std::shared_ptr<my_data> local = std::atomic_load(&p);
+    process_data(local);
+}
+
+void update_global_data()
+{
+    std::shared_ptr<my_data> local(new my_data);
+    std::atomic_store(&p,local);
+}
+```
