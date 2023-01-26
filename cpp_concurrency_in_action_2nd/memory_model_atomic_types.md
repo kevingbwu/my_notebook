@@ -143,3 +143,50 @@ void update_global_data()
     std::atomic_store(&p,local);
 }
 ```
+
+## Synchronizing operations and enforcing ordering
+
+```c++
+// Suppose you have two threads, one of which is populating a data structure to be read
+// by the second
+// Enforcing an ordering between non-atomic operations using atomic operations
+
+#include <vector>
+#include <atomic>
+#include <iostream>
+std::vector<int> data;
+std::atomic<bool> data_ready(false);
+
+void reader_thread()
+{
+    while(!data_ready.load())
+    {
+        std::this_thread::sleep(std::chrono::milliseconds(1));
+    }
+    std::cout << "The answer=" << data[0] << "\n";
+}
+
+void writer_thread()
+{
+    data.push_back(42);
+    data_ready = true;
+}
+```
+
+### The synchronizes-with relationship
+
+The **synchronizes-with relationship** is something that you can get only between operations on atomic types.
+
+If thread A stores a value and thread B reads that value, there's a synchronizes-with relationship between the store in thread A and the load in thread B.
+
+### The happens-before relationship
+
+If one operation (A) occurs in a statement prior to another (B) in the source code, then A happens before B, and A strongly-happens-before B.
+
+If the operations occur in the same statement, in general there’s no happens-before relationship between them, because they’re unordered.
+
+If operation A on one thread inter-thread happens before operation B on another thread, then A happens before B.
+
+If operation A in one thread synchronizes with operation B in another thread, then A inter-thread happens before B.
+
+### Memory ordering for atomic operations
