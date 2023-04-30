@@ -190,3 +190,92 @@ If operation A on one thread inter-thread happens before operation B on another 
 If operation A in one thread synchronizes with operation B in another thread, then A inter-thread happens before B.
 
 ### Memory ordering for atomic operations
+
+Six memory ordering options that can be applied to operations on atomic types and represent three models
+
+* sequentially consistent ordering: `memory_order_seq_cst`
+
+* acquire-release ordering: `memory_order_consume`, `memory_order_acquire`, `memory_order_release`, and `memory_order_acq_rel`
+
+* relaxed ordering: `memory_order_relaxed`
+
+### Release sequences and synchronizes-with
+
+### Fences
+
+Fences are global operations and affect the ordering of other atomic operations in the thread that executed the fence. Fences are also commonly called memory barriers, and they get their name because they put a line in the code that certain operations can’t cross.
+
+```c++
+// Relaxed operations can be ordered with fences
+#include <atomic>
+#include <thread>
+#include <assert.h>
+
+std::atomic<bool> x, y;
+std::atomic<int> z;
+
+void write_x_then_y() {
+    x.store(true, std::memory_order_relaxed);
+    std::atomic_thread_fence(std::memory_order_release);
+    y.store(true, std::memory_order_relaxed);
+}
+
+void read_y_then_x() {
+    while (!y.load(std::memory_order_relaxed));
+    std::atomic_thread_fence(std::memory_order_acquire);
+    if (x.load(std::memory_order_relaxed))
+        ++z;
+}
+
+int main() {
+    x = false;
+    y = false;
+    z = 0;
+    std::thread a(write_x_then_y);
+    std::thread b(read_y_then_x);
+    a.join();
+    b.join();
+    assert(z.load() != 0);
+}
+```
+
+### Ordering non-atomic operations with atomics
+
+```c++
+// Enforcing ordering on non-atomic operations
+#include <atomic>
+#include <thread>
+#include <assert.h>
+
+bool x = false;
+std::atomic<bool> y;
+std::atomic<int> z;
+
+void write_x_then_y() {
+    x = true;
+    std::atomic_thread_fence(std::memory_order_release);
+    y.store(true, std::memory_order_relaxed);
+}
+
+void read_y_then_x() {
+    while (!y.load(std::memory_order_relaxed));
+    std::atomic_thread_fence(std::memory_order_acquire);
+    if (x)
+        ++z;
+}
+
+int main() {
+    x = false;
+    y = false;
+    z = 0;
+    std::thread a(write_x_then_y);
+    std::thread b(read_y_then_x);
+    a.join();
+    b.join();
+    assert(z.load() != 0);
+}
+```
+
+### Ordering non-atomic operations
+
+If a non-atomic operation is sequenced before an atomic operation, and that atomic operation happens before an operation in another thread, the non-atomic operation also happens before that operation in the other thread. **This is the basis for the higher-level synchronization facilities in the C++ Standard Library, such as mutexes and condition variables**.
